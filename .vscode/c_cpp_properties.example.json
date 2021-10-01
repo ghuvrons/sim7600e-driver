@@ -1,0 +1,35 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "/opt/st/stm32cubeide_1.6.1/plugins/**",
+                "/opt/st/stm32cubeide_1.6.1/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.9-2020-q2-update.linux64_1.5.0.202011040924/tools/arm-none-eabi/include",
+                "${workspaceFolder}/../f411_driver_tester/Drivers/CMSIS/Include",
+                "${workspaceFolder}/../f411_driver_tester/Drivers/CMSIS/Device/ST/STM32F4xx/Include",
+                "${workspaceFolder}/../f411_driver_tester/Drivers/STM32F4xx_HAL_Driver/Inc",
+                "${workspaceFolder}/../f411_driver_tester/Drivers/DMA_Streamer/Inc",
+                "${workspaceFolder}/../f411_driver_tester/Drivers/SIM5300e/Inc",
+                "${workspaceFolder}/../f411_driver_tester/Drivers/MQTT_Client/Inc",
+                "${workspaceFolder}/../f411_driver_tester/Middlewares/**",
+                "${workspaceFolder}/../f411_driver_tester/USB_DEVICE/Target",
+                "${workspaceFolder}/../f411_driver_tester/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc",
+                "${workspaceFolder}/../f411_driver_tester/Middlewares/ST/STM32_USB_Device_Library/Core/Inc",
+                "${workspaceFolder}/../f411_driver_tester/USB_DEVICE/App",
+                "${workspaceFolder}/../f411_driver_tester/Core/Debugger/Inc",
+                "${workspaceFolder}/../f411_driver_tester/Core/Inc"
+            ],
+            "forcedInclude": [
+                "${workspaceFolder}/../f411_driver_tester/Core/Inc/stm32f4xx_hal_conf.h"
+            ],
+            "defines": [
+                "STM32F411xE"
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++14",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}
