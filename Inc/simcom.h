@@ -52,6 +52,15 @@ typedef struct {
   } net;
 } SIM_HandlerTypedef;
 
+typedef struct {
+  uint8_t year;
+  uint8_t month;
+  uint8_t day;
+  uint8_t hour;
+  uint8_t minute;
+  uint8_t second;
+} SIM_Datetime;
+
 uint32_t SIM_GetTick(void);
 void SIM_Delay(uint32_t ms);
 void SIM_LockCMD(SIM_HandlerTypedef*);
@@ -60,6 +69,7 @@ void SIM_Init(SIM_HandlerTypedef*, STRM_handlerTypedef*);
 void SIM_checkAsyncResponse(SIM_HandlerTypedef*, uint32_t timeout);
 uint16_t SIM_checkResponse(SIM_HandlerTypedef*, uint32_t timeout);
 void SIM_CheckAT(SIM_HandlerTypedef*);
+SIM_Datetime SIM_GetTime(SIM_HandlerTypedef*);
 void SIM_SendSms(SIM_HandlerTypedef*);
 void SIM_NetOpen(SIM_HandlerTypedef*);
 int8_t SIM_SockOpenTCPIP(SIM_HandlerTypedef*, const char *host, uint16_t port);
