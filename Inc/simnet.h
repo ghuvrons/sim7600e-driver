@@ -34,12 +34,15 @@ typedef struct {
   uint32_t timeout;
   char host[64];
   uint16_t port;
+  uint8_t *buffer;
+  SIM_SockListener listener;
 } SIM_Socket;
 
 void SIM_SOCK_SetAddr(SIM_Socket*, const char *host, uint16_t port);
+void SIM_SOCK_SetBuffer(SIM_Socket*, uint8_t *buffer, uint16_t size);
 int8_t SIM_SOCK_Open(SIM_Socket*, SIM_HandlerTypedef*);
 void SIM_SOCK_Close(SIM_Socket*);
 uint16_t SIM_SOCK_SendData(SIM_Socket*, const uint8_t *data, uint16_t length);
-uint16_t SIM_SOCK_ReadData(SIM_Socket*, const uint8_t *data, uint16_t length);
+void SIM_SOCK_OnReceiveData(SIM_Socket*, void (*onReceive)(uint16_t));
 
 #endif /* SIM5300E_INC_SIMNET_H_ */

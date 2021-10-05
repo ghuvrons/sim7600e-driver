@@ -38,6 +38,13 @@
 #define SIM_UNSET_STATUS(hsim, stat) {(hsim)->status &= ~(stat);}
 
 typedef struct {
+  void (*onReceive)(uint16_t);
+  uint16_t (*onClose)(void);
+  uint16_t bufferSize;
+  uint8_t *buffer;
+} SIM_SockListener;
+
+typedef struct {
   STRM_handlerTypedef *dmaStreamer;
   uint8_t buffer[SIM_BUFFER_SIZE];
   uint8_t state;
@@ -48,7 +55,7 @@ typedef struct {
   struct {
     uint8_t state;
     uint32_t (*onOpened)(void);
-    void* sockets[SIM_MAX_SOCKET];
+    SIM_SockListener* sockets[SIM_MAX_SOCKET];
   } net;
 } SIM_HandlerTypedef;
 
@@ -70,9 +77,12 @@ void SIM_checkAsyncResponse(SIM_HandlerTypedef*, uint32_t timeout);
 uint16_t SIM_checkResponse(SIM_HandlerTypedef*, uint32_t timeout);
 void SIM_CheckAT(SIM_HandlerTypedef*);
 SIM_Datetime SIM_GetTime(SIM_HandlerTypedef*);
+void SIM_HashTime(SIM_HandlerTypedef*, char *hashed);
 void SIM_SendSms(SIM_HandlerTypedef*);
 void SIM_NetOpen(SIM_HandlerTypedef*);
 int8_t SIM_SockOpenTCPIP(SIM_HandlerTypedef*, const char *host, uint16_t port);
+void SIM_SockAddListener(SIM_HandlerTypedef*, uint8_t linkNum, SIM_SockListener*);
+void SIM_SockRemoveListener(SIM_HandlerTypedef*, uint8_t linkNum);
 void SIM_SockSendData(SIM_HandlerTypedef*, int8_t linkNum, const uint8_t *data, uint16_t length);
 
 #endif /* SIM5300E_INC_SIMCOM_H_ */

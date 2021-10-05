@@ -25,6 +25,12 @@ void SIM_SOCK_SetAddr(SIM_Socket *sock, const char *host, uint16_t port)
   sock->port = port;
 }
 
+void SIM_SOCK_SetBuffer(SIM_Socket *sock, uint8_t *buffer, uint16_t size)
+{
+  sock->buffer = buffer;
+  sock->listener.buffer = buffer;
+  sock->listener.bufferSize = size;
+}
 
 int8_t SIM_SOCK_Open(SIM_Socket *sock, SIM_HandlerTypedef *hsim)
 {
@@ -37,6 +43,8 @@ int8_t SIM_SOCK_Open(SIM_Socket *sock, SIM_HandlerTypedef *hsim)
     sock->hsim = hsim;
     sock->linkNum = linkNum;
     hsim->net.sockets[linkNum] = (void*)sock;
+
+    SIM_SockAddListener(hsim, linkNum, &(sock->listener));
   }
 
   return linkNum;
@@ -48,4 +56,10 @@ uint16_t SIM_SOCK_SendData(SIM_Socket *sock, const uint8_t *data, uint16_t lengt
   if(!SIM_SOCK_IS_STATUS(sock, SIM_SOCK_STATUS_OPEN)) return 0;
   SIM_SockSendData(sock->hsim, sock->linkNum, data, length);
   return 0;
+}
+
+
+void SIM_SOCK_OnReceiveData(SIM_Socket *sock, void (*onReceive)(uint16_t))
+{
+  sock->listener.onReceive = onReceive;
 }
