@@ -10,6 +10,7 @@
 #include "simcom.h"
 #include "simnet.h"
 #include <string.h>
+#include <stdio.h>
 
 
 
@@ -53,6 +54,7 @@ int8_t SIM_SOCK_Open(SIM_Socket *sock, SIM_HandlerTypedef *hsim)
 
 uint16_t SIM_SOCK_SendData(SIM_Socket *sock, const uint8_t *data, uint16_t length)
 {
+  printf("sending packet\r\n");
   if(!SIM_SOCK_IS_STATUS(sock, SIM_SOCK_STATUS_OPEN)) return 0;
   SIM_SockSendData(sock->hsim, sock->linkNum, data, length);
   return 0;

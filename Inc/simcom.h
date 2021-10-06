@@ -23,11 +23,13 @@
  *      4   is net opened
  */
 
-#define SIM_STAT_CONNECT      0x01
-#define SIM_STAT_UART_READING 0x02
-#define SIM_STAT_UART_WRITING 0x04
-#define SIM_STAT_CMD_RUNNING  0x08
-#define SIM_STAT_NET_OPEN     0x10
+#define SIM_STAT_START        0x01
+#define SIM_STAT_CONNECT      0x02
+#define SIM_STAT_UART_READING 0x04
+#define SIM_STAT_UART_WRITING 0x06
+#define SIM_STAT_CMD_RUNNING  0x10
+#define SIM_STAT_NET_OPEN     0x20
+#define SIM_STAT_NET_OPENING  0x40
 
 #define SIM_RESP_TIMEOUT  0
 #define SIM_RESP_ERROR    1
@@ -36,6 +38,16 @@
 #define SIM_IS_STATUS(hsim, stat) (((hsim)->status & (stat)) != 0)
 #define SIM_SET_STATUS(hsim, stat) {(hsim)->status |= (stat);}
 #define SIM_UNSET_STATUS(hsim, stat) {(hsim)->status &= ~(stat);}
+
+#define SIM_RESET(hsim) {\
+  for(uint8_t i = 0; i < SIM_MAX_SOCKET; i++){\
+    if((hsim)->net.sockets[i] != NULL){\
+      if((hsim)->net.sockets[i]->onClose != NULL) (hsim)->net.sockets[i]->onClose();\
+      (hsim)->net.sockets[i] = NULL;\
+    }\
+  }\
+  (hsim)->status = 0;\
+}
 
 typedef struct {
   void (*onReceive)(uint16_t);
@@ -47,13 +59,12 @@ typedef struct {
 typedef struct {
   STRM_handlerTypedef *dmaStreamer;
   uint8_t buffer[SIM_BUFFER_SIZE];
-  uint8_t state;
+  uint16_t bufferLen;
   uint8_t status;
   uint32_t timeout;
 
 //  SIM_NET_HandlerTypedef net;
   struct {
-    uint8_t state;
     uint32_t (*onOpened)(void);
     SIM_SockListener* sockets[SIM_MAX_SOCKET];
   } net;

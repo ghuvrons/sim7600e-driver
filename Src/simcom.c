@@ -46,6 +46,8 @@ static uint8_t getResponse(SIM_HandlerTypedef *hsim,
 static uint8_t isOK(SIM_HandlerTypedef *hsim);
 static const uint8_t * parseStr(const uint8_t *separator, uint8_t delimiter, int idx, uint8_t *output);
 static void str2Time(SIM_Datetime*, const char*);
+// listener
+static void onNetOpen(SIM_HandlerTypedef*);
 static void onSockReceive(SIM_HandlerTypedef*);
 static void onSockClose(SIM_HandlerTypedef*);
 
@@ -102,8 +104,17 @@ uint16_t SIM_checkResponse(SIM_HandlerTypedef *hsim, uint32_t timeout)
     bufLen = STRM_Readline(hsim->dmaStreamer, hsim->buffer, SIM_BUFFER_SIZE, timeout);
     if(bufLen){
       // check async response
-      if(IS_RESP(hsim, "+RECEIVE", bufLen, 8)){
+      if(IS_RESP(hsim, "START", bufLen, 3)){
+        SIM_RESET(hsim);
+      }
+      else if(!SIM_IS_STATUS(hsim, SIM_STAT_START) && IS_RESP(hsim, "PB ", bufLen, 3)){
+        SIM_SET_STATUS(hsim, SIM_STAT_START);
+      }
+      else if(IS_RESP(hsim, "+RECEIVE", bufLen, 8)){
         onSockReceive(hsim);
+      }
+      else if(bufLen == 11 && IS_RESP(hsim, "+NETOPEN", bufLen, 8)){
+        onNetOpen(hsim);
       }
       else if(IS_RESP(hsim, "+IPCLOSE", bufLen, 8)){
         onSockClose(hsim);
@@ -178,31 +189,26 @@ void SIM_NetOpen(SIM_HandlerTypedef *hsim)
   uint8_t resp;
   uint8_t isNetOpened = 0;
 
+  if(SIM_IS_STATUS(hsim, SIM_STAT_NET_OPENING)) return;
+
   SIM_LockCMD(hsim);
 
   // check net state
   sendRequest(hsim, "AT+NETOPEN?", 11);
   if(getResponse(hsim, "+NETOPEN", 8, &resp, 1, GETRESP_WAIT_OK, 1000) == SIM_RESP_OK){
     if(resp == '1'){ // net already open;
-      isNetOpened = 1;
+      SIM_SET_STATUS(hsim, SIM_STAT_NET_OPEN);
+
+      // TCP/IP Config
+      sendRequest(hsim, "AT+CIPCCFG=10,0,1,1,1,1,10000", 29);
+      if (isOK(hsim)){
+      }
     } else {
       sendRequest(hsim, "AT+NETOPEN", 10);
       SIM_Delay(1000);
-      resp = 0;
-      if(getResponse(hsim, "+NETOPEN", 8, &resp, 1, GETRESP_WAIT_OK, 15000) == SIM_RESP_OK){
-        if(resp == '0'){
-          isNetOpened = 1;
-        }
+      if (isOK(hsim)){
+        SIM_SET_STATUS(hsim, SIM_STAT_NET_OPENING);
       }
-    }
-  }
-
-  if(isNetOpened && !SIM_IS_STATUS(hsim, SIM_STAT_NET_OPEN)){
-    SIM_SET_STATUS(hsim, SIM_STAT_NET_OPEN);
-
-    // TCP/IP Config
-    sendRequest(hsim, "AT+CIPCCFG=10,0,1,1,1,1,10000", 29);
-    if (isOK(hsim)){
     }
   }
 
@@ -218,8 +224,7 @@ int8_t SIM_SockOpenTCPIP(SIM_HandlerTypedef *hsim, const char *host, uint16_t po
 {
   int8_t linkNum = -1;
   char cmd[128];
-  uint8_t resp[6];
-  uint8_t respErr;
+  uint8_t resp[4];
 
   if(!SIM_IS_STATUS(hsim, SIM_STAT_NET_OPEN))
   {
@@ -239,9 +244,10 @@ int8_t SIM_SockOpenTCPIP(SIM_HandlerTypedef *hsim, const char *host, uint16_t po
   sprintf(cmd, "AT+CIPOPEN=%d,\"TCP\",\"%s\",%d", linkNum, host, port);
   sendRequest(hsim, cmd, strlen(cmd));
 
-  if(getResponse(hsim, "+CIPOPEN", 8, resp, 6, GETRESP_WAIT_OK, 15000) == SIM_RESP_OK){
-    parseStr(resp, ',', 1, &respErr);
-    if(respErr != '0') linkNum = -1;
+  memset(resp, 0, 4);
+  if(getResponse(hsim, "+CIPOPEN", 8, resp, 3, GETRESP_WAIT_OK, 15000) == SIM_RESP_OK){
+    DBG_Log(resp, 4);
+    if(resp[3] != '0') linkNum = -1;
   }
 
   SIM_UnlockCMD(hsim);
@@ -278,6 +284,27 @@ void SIM_SockAddListener(SIM_HandlerTypedef *hsim, uint8_t linkNum, SIM_SockList
 void SIM_SockRemoveListener(SIM_HandlerTypedef *hsim, uint8_t linkNum)
 {
   hsim->net.sockets[linkNum] = NULL;
+}
+
+
+
+static void onNetOpen(SIM_HandlerTypedef *hsim)
+{
+  if(!SIM_IS_STATUS(hsim, SIM_STAT_NET_OPENING)) return;
+
+  // skip string "+NETOPEN: " and read next data
+  if(hsim->buffer[10] == '0'){
+    SIM_UNSET_STATUS(hsim, SIM_STAT_NET_OPENING);
+    SIM_SET_STATUS(hsim, SIM_STAT_NET_OPEN);
+
+    // TCP/IP Config
+    sendRequest(hsim, "AT+CIPCCFG=10,0,1,1,1,1,10000", 29);
+    if (isOK(hsim)){
+    }
+  }
+  else {
+    SIM_UNSET_STATUS(hsim, SIM_STAT_NET_OPENING);
+  }
 }
 
 
@@ -390,8 +417,6 @@ static uint8_t getResponse(SIM_HandlerTypedef *hsim,
   uint32_t tickstart = SIM_GetTick();
 
   if(timeout == 0) timeout = hsim->timeout;
-  if(SIM_IS_STATUS(hsim, SIM_STAT_UART_READING)) return 0;
-  SIM_SET_STATUS(hsim, SIM_STAT_UART_READING);
 
   // wait until available
   while(1){
@@ -428,7 +453,6 @@ static uint8_t getResponse(SIM_HandlerTypedef *hsim,
     }
   }
 
-  SIM_UNSET_STATUS(hsim, SIM_STAT_UART_READING);
   return resp;
 }
 
