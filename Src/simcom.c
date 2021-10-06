@@ -182,7 +182,6 @@ void SIM_HashTime(SIM_HandlerTypedef *hsim, char *hashed)
 void SIM_NetOpen(SIM_HandlerTypedef *hsim)
 {
   uint8_t resp;
-  uint8_t isNetOpened = 0;
 
   if(SIM_IS_STATUS(hsim, SIM_STAT_NET_OPENING)) return;
 
@@ -241,7 +240,6 @@ int8_t SIM_SockOpenTCPIP(SIM_HandlerTypedef *hsim, const char *host, uint16_t po
 
   memset(resp, 0, 4);
   if(getResponse(hsim, "+CIPOPEN", 8, resp, 3, GETRESP_WAIT_OK, 15000) == SIM_RESP_OK){
-    DBG_Log(resp, 4);
     if(resp[3] != '0') linkNum = -1;
   }
 
