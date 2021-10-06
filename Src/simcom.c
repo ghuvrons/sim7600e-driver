@@ -13,11 +13,6 @@
 #include "dma_streamer.h"
 
 
-// debugger
-#include "debugger.h"
-uint8_t tmpBuf[10];
-uint8_t tmpBufIdx;
-
 #define GETRESP_WAIT_OK 0
 #define GETRESP_ONLY_DATA 1
 
