@@ -6,11 +6,12 @@
  */
 
 #include "stm32f4xx_hal.h"
-#include "simcom.h"
+#include "Include/simcom.h"
+#include "Include/simcom/conf.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "dma_streamer.h"
+#include <dma_streamer.h>
 
 
 #define GETRESP_WAIT_OK 0
@@ -48,16 +49,6 @@ static void onSockClose(SIM_HandlerTypedef*);
 
 // function definition
 
-__weak uint32_t SIM_GetTick(void)
-{
-  return HAL_GetTick();
-}
-
-__weak void SIM_Delay(uint32_t ms)
-{
-  HAL_Delay(ms);
-}
-
 __weak void SIM_LockCMD(SIM_HandlerTypedef *hsim)
 {
   while(SIM_IS_STATUS(hsim, SIM_STAT_CMD_RUNNING)){
@@ -94,31 +85,37 @@ uint16_t SIM_checkResponse(SIM_HandlerTypedef *hsim, uint32_t timeout)
 
   if(timeout == 0) timeout = hsim->timeout;
 
-  while(1){
+  while (1) {
     if((SIM_GetTick() - tickstart) >= timeout) break;
     bufLen = STRM_Readline(hsim->dmaStreamer, hsim->buffer, SIM_BUFFER_SIZE, timeout);
     if(bufLen){
       // check async response
-      if(IS_RESP(hsim, "START", bufLen, 3)){
+      if (IS_RESP(hsim, "START", bufLen, 3)) {
         SIM_RESET(hsim);
       }
-      else if(!SIM_IS_STATUS(hsim, SIM_STAT_START) && IS_RESP(hsim, "PB ", bufLen, 3)){
+
+      else if (!SIM_IS_STATUS(hsim, SIM_STAT_START) && IS_RESP(hsim, "PB ", bufLen, 3)) {
         SIM_SET_STATUS(hsim, SIM_STAT_START);
       }
-      else if(IS_RESP(hsim, "+RECEIVE", bufLen, 8)){
+
+      else if (IS_RESP(hsim, "+RECEIVE", bufLen, 8)) {
         onSockReceive(hsim);
       }
-      else if(bufLen == 11 && IS_RESP(hsim, "+NETOPEN", bufLen, 8)){
+
+      else if (bufLen == 11 && IS_RESP(hsim, "+NETOPEN", bufLen, 8)) {
         onNetOpen(hsim);
       }
-      else if(IS_RESP(hsim, "+IPCLOSE", bufLen, 8)){
+
+      else if (IS_RESP(hsim, "+IPCLOSE", bufLen, 8)) {
         onSockClose(hsim);
       }
-      else if(IS_RESP(hsim, "+CIPEVENT", bufLen, 9)){
-        if(strncmp((const char *)&(hsim->buffer[11]), "NETWORK CLOSED", 14)){
+
+      else if (IS_RESP(hsim, "+CIPEVENT", bufLen, 9)) {
+        if (strncmp((const char *)&(hsim->buffer[11]), "NETWORK CLOSED", 14)) {
           SIM_UNSET_STATUS(hsim, SIM_STAT_NET_OPEN);
         }
       }
+
       else break;
     }
   }
@@ -189,13 +186,13 @@ void SIM_NetOpen(SIM_HandlerTypedef *hsim)
 
   // check net state
   sendRequest(hsim, "AT+NETOPEN?", 11);
-  if(getResponse(hsim, "+NETOPEN", 8, &resp, 1, GETRESP_WAIT_OK, 1000) == SIM_RESP_OK){
-    if(resp == '1'){ // net already open;
+  if (getResponse(hsim, "+NETOPEN", 8, &resp, 1, GETRESP_WAIT_OK, 1000) == SIM_RESP_OK) {
+    if (resp == '1') { // net already open;
       SIM_SET_STATUS(hsim, SIM_STAT_NET_OPEN);
 
       // TCP/IP Config
       sendRequest(hsim, "AT+CIPCCFG=10,0,1,1,1,1,10000", 29);
-      if (isOK(hsim)){
+      if (isOK(hsim)) {
       }
     } else {
       sendRequest(hsim, "AT+NETOPEN", 10);
@@ -245,6 +242,13 @@ int8_t SIM_SockOpenTCPIP(SIM_HandlerTypedef *hsim, const char *host, uint16_t po
 
   SIM_UnlockCMD(hsim);
   return linkNum;
+}
+
+
+void SIM_SockClose(SIM_HandlerTypedef *hsim, uint8_t linkNum)
+{
+  SIM_LockCMD(hsim);
+  SIM_UnlockCMD(hsim);
 }
 
 
@@ -372,9 +376,9 @@ static uint16_t getData(SIM_HandlerTypedef *hsim,
 
   if(timeout == 0) timeout = hsim->timeout;
   while(len < rdsize){
-    if((STRM_GetTick() - tickstart) >= timeout) break;
+    if((SIM_GetTick() - tickstart) >= timeout) break;
     len += STRM_ReadBuffer(hsim->dmaStreamer, respData, rdsize, STRM_BREAK_NONE);
-    if(len == 0) STRM_Delay(1);
+    if(len == 0) SIM_Delay(1);
   }
   return len;
 }
@@ -404,6 +408,7 @@ static uint8_t getResponse(SIM_HandlerTypedef *hsim,
                         uint8_t getRespType,
                         uint32_t timeout)
 {
+  uint16_t i;
   uint8_t resp = SIM_RESP_TIMEOUT;
   uint16_t bufLen = 0;
   uint8_t flagToReadResp = 0;
@@ -419,7 +424,7 @@ static uint8_t getResponse(SIM_HandlerTypedef *hsim,
       if(rcsize && strncmp((char *)hsim->buffer, respCode, rcsize) == 0){
         if(flagToReadResp) continue;
         // read response data
-        for(int i = 2; i < bufLen && rdsize; i++){
+        for(i = 2; i < bufLen && rdsize; i++){
           // split string
           if(!flagToReadResp && hsim->buffer[i-2] == ':' && hsim->buffer[i-1] == ' '){
             flagToReadResp = 1;

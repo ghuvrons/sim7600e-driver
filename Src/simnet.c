@@ -50,6 +50,12 @@ int8_t SIM_SOCK_Open(SIM_Socket *sock, SIM_HandlerTypedef *hsim)
 }
 
 
+void SIM_SOCK_Close(SIM_Socket *sock)
+{
+
+}
+
+
 uint16_t SIM_SOCK_SendData(SIM_Socket *sock, const uint8_t *data, uint16_t length)
 {
   if(!SIM_SOCK_IS_STATUS(sock, SIM_SOCK_STATUS_OPEN)) return 0;
