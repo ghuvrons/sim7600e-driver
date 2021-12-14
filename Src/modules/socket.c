@@ -156,7 +156,7 @@ void SIM_SockRemoveListener(SIM_HandlerTypeDef *hsim, uint8_t linkNum)
 }
 
 
-void SIM_SOCK_SetAddr(SIM_Socket *sock, const char *host, uint16_t port)
+void SIM_SOCK_SetAddr(SIM_Socket_t *sock, const char *host, uint16_t port)
 {
   char *sockIP = sock->host;
   while (*host != '\0') {
@@ -168,14 +168,14 @@ void SIM_SOCK_SetAddr(SIM_Socket *sock, const char *host, uint16_t port)
   sock->port = port;
 }
 
-void SIM_SOCK_SetBuffer(SIM_Socket *sock, uint8_t *buffer, uint16_t size)
+void SIM_SOCK_SetBuffer(SIM_Socket_t *sock, uint8_t *buffer, uint16_t size)
 {
   sock->buffer = buffer;
   sock->listener.buffer = buffer;
   sock->listener.bufferSize = size;
 }
 
-int8_t SIM_SOCK_Open(SIM_Socket *sock, SIM_HandlerTypeDef *hsim)
+int8_t SIM_SOCK_Open(SIM_Socket_t *sock, SIM_HandlerTypeDef *hsim)
 {
   int8_t linkNum = -1;
 
@@ -195,13 +195,13 @@ int8_t SIM_SOCK_Open(SIM_Socket *sock, SIM_HandlerTypeDef *hsim)
 }
 
 
-void SIM_SOCK_Close(SIM_Socket *sock)
+void SIM_SOCK_Close(SIM_Socket_t *sock)
 {
 
 }
 
 
-uint16_t SIM_SOCK_SendData(SIM_Socket *sock, const uint8_t *data, uint16_t length)
+uint16_t SIM_SOCK_SendData(SIM_Socket_t *sock, const uint8_t *data, uint16_t length)
 {
   if (!SIM_SOCK_IS_STATUS(sock, SIM_SOCK_STATUS_OPEN)) return 0;
   SIM_SockSendData(sock->hsim, sock->linkNum, data, length);
@@ -209,7 +209,7 @@ uint16_t SIM_SOCK_SendData(SIM_Socket *sock, const uint8_t *data, uint16_t lengt
 }
 
 
-void SIM_SOCK_OnReceiveData(SIM_Socket *sock, void (*onReceived)(uint16_t))
+void SIM_SOCK_OnReceiveData(SIM_Socket_t *sock, void (*onReceived)(uint16_t))
 {
   sock->listener.onReceived = onReceived;
 }

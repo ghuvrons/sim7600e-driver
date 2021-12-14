@@ -36,7 +36,7 @@ typedef struct {
   uint16_t            port;
   uint8_t             *buffer;
   SIM_SockListener    listener;
-} SIM_Socket;
+} SIM_Socket_t;
 
 // simcom feature net and socket
 void    SIM_NetOpen(SIM_HandlerTypeDef*);
@@ -48,12 +48,12 @@ void    SIM_SockSendData(SIM_HandlerTypeDef*, int8_t linkNum, const uint8_t *dat
 uint8_t SIM_NetCheckAsyncResponse(SIM_HandlerTypeDef*);
 
 // socket method
-void      SIM_SOCK_SetAddr(SIM_Socket*, const char *host, uint16_t port);
-void      SIM_SOCK_SetBuffer(SIM_Socket*, uint8_t *buffer, uint16_t size);
-int8_t    SIM_SOCK_Open(SIM_Socket*, SIM_HandlerTypeDef*);
-void      SIM_SOCK_Close(SIM_Socket*);
-uint16_t  SIM_SOCK_SendData(SIM_Socket*, const uint8_t *data, uint16_t length);
-void      SIM_SOCK_OnReceiveData(SIM_Socket*, void (*onReceive)(uint16_t));
+void      SIM_SOCK_SetAddr(SIM_Socket_t*, const char *host, uint16_t port);
+void      SIM_SOCK_SetBuffer(SIM_Socket_t*, uint8_t *buffer, uint16_t size);
+int8_t    SIM_SOCK_Open(SIM_Socket_t*, SIM_HandlerTypeDef*);
+void      SIM_SOCK_Close(SIM_Socket_t*);
+uint16_t  SIM_SOCK_SendData(SIM_Socket_t*, const uint8_t *data, uint16_t length);
+void      SIM_SOCK_OnReceiveData(SIM_Socket_t*, void (*onReceive)(uint16_t));
 
 #endif /* SIM5300E_INC_SIMNET_H_ */
 #endif /* SIM_EN_FEATURE_SOCKET */
