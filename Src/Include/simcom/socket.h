@@ -26,7 +26,7 @@
 
 
 typedef struct {
-  SIM_HandlerTypedef *hsim;
+  SIM_HandlerTypeDef *hsim;
   uint8_t status;
   uint8_t linkNum;
   uint8_t type; // SIM_SOCK_UDP or SIM_SOCK_TCPIP
@@ -38,17 +38,17 @@ typedef struct {
 } SIM_Socket;
 
 // simcom feature net and socket
-void SIM_NetOpen(SIM_HandlerTypedef*);
-int8_t SIM_SockOpenTCPIP(SIM_HandlerTypedef*, const char *host, uint16_t port);
-void SIM_SockClose(SIM_HandlerTypedef*, uint8_t linkNum);
-void SIM_SockAddListener(SIM_HandlerTypedef*, uint8_t linkNum, SIM_SockListener*);
-void SIM_SockRemoveListener(SIM_HandlerTypedef*, uint8_t linkNum);
-void SIM_SockSendData(SIM_HandlerTypedef*, int8_t linkNum, const uint8_t *data, uint16_t length);
+void SIM_NetOpen(SIM_HandlerTypeDef*);
+int8_t SIM_SockOpenTCPIP(SIM_HandlerTypeDef*, const char *host, uint16_t port);
+void SIM_SockClose(SIM_HandlerTypeDef*, uint8_t linkNum);
+void SIM_SockAddListener(SIM_HandlerTypeDef*, uint8_t linkNum, SIM_SockListener*);
+void SIM_SockRemoveListener(SIM_HandlerTypeDef*, uint8_t linkNum);
+void SIM_SockSendData(SIM_HandlerTypeDef*, int8_t linkNum, const uint8_t *data, uint16_t length);
 
 // socket method
 void SIM_SOCK_SetAddr(SIM_Socket*, const char *host, uint16_t port);
 void SIM_SOCK_SetBuffer(SIM_Socket*, uint8_t *buffer, uint16_t size);
-int8_t SIM_SOCK_Open(SIM_Socket*, SIM_HandlerTypedef*);
+int8_t SIM_SOCK_Open(SIM_Socket*, SIM_HandlerTypeDef*);
 void SIM_SOCK_Close(SIM_Socket*);
 uint16_t SIM_SOCK_SendData(SIM_Socket*, const uint8_t *data, uint16_t length);
 void SIM_SOCK_OnReceiveData(SIM_Socket*, void (*onReceive)(uint16_t));

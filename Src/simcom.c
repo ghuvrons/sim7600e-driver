@@ -17,19 +17,19 @@
 
 // static function initiation
 
-static uint16_t getData(SIM_HandlerTypedef *hsim,
+static uint16_t getData(SIM_HandlerTypeDef *hsim,
                         uint8_t *respData, uint16_t rdsize,
                         uint32_t timeout);
 static const uint8_t * parseStr(const uint8_t *separator, uint8_t delimiter, int idx, uint8_t *output);
 static void str2Time(SIM_Datetime*, const char*);
 // listener
-static void onNetOpen(SIM_HandlerTypedef*);
-static void onSockReceive(SIM_HandlerTypedef*);
-static void onSockClose(SIM_HandlerTypedef*);
+static void onNetOpen(SIM_HandlerTypeDef*);
+static void onSockReceive(SIM_HandlerTypeDef*);
+static void onSockClose(SIM_HandlerTypeDef*);
 
 // function definition
 
-__weak void SIM_LockCMD(SIM_HandlerTypedef *hsim)
+__weak void SIM_LockCMD(SIM_HandlerTypeDef *hsim)
 {
   while(SIM_IS_STATUS(hsim, SIM_STAT_CMD_RUNNING)){
     SIM_Delay(1);
@@ -37,13 +37,13 @@ __weak void SIM_LockCMD(SIM_HandlerTypedef *hsim)
   SIM_SET_STATUS(hsim, SIM_STAT_CMD_RUNNING);
 }
 
-__weak void SIM_UnlockCMD(SIM_HandlerTypedef *hsim)
+__weak void SIM_UnlockCMD(SIM_HandlerTypeDef *hsim)
 {
   SIM_UNSET_STATUS(hsim, SIM_STAT_CMD_RUNNING);
 }
 
 
-void SIM_Init(SIM_HandlerTypedef *hsim, STRM_handlerTypedef *dmaStreamer)
+void SIM_Init(SIM_HandlerTypeDef *hsim, STRM_handlerTypeDef *dmaStreamer)
 {
   hsim->dmaStreamer = dmaStreamer;
   hsim->timeout = 2000;
@@ -54,7 +54,7 @@ void SIM_Init(SIM_HandlerTypedef *hsim, STRM_handlerTypedef *dmaStreamer)
 /*
  * Read response per lines at a certain time interval
  */
-void SIM_checkAsyncResponse(SIM_HandlerTypedef *hsim, uint32_t timeout)
+void SIM_checkAsyncResponse(SIM_HandlerTypeDef *hsim, uint32_t timeout)
 {
   SIM_LockCMD(hsim);
   SIM_checkResponse(hsim, timeout);
@@ -65,7 +65,7 @@ void SIM_checkAsyncResponse(SIM_HandlerTypedef *hsim, uint32_t timeout)
 /*
  * Read response per lines
  */
-uint16_t SIM_checkResponse(SIM_HandlerTypedef *hsim, uint32_t timeout)
+uint16_t SIM_checkResponse(SIM_HandlerTypeDef *hsim, uint32_t timeout)
 {
   uint16_t bufLen = 0;
   uint32_t tickstart = SIM_GetTick();
@@ -110,7 +110,7 @@ uint16_t SIM_checkResponse(SIM_HandlerTypedef *hsim, uint32_t timeout)
 }
 
 
-void SIM_CheckAT(SIM_HandlerTypedef *hsim)
+void SIM_CheckAT(SIM_HandlerTypeDef *hsim)
 {
   SIM_LockCMD(hsim);
 
@@ -127,7 +127,7 @@ void SIM_CheckAT(SIM_HandlerTypedef *hsim)
 }
 
 
-SIM_Datetime SIM_GetTime(SIM_HandlerTypedef *hsim)
+SIM_Datetime SIM_GetTime(SIM_HandlerTypeDef *hsim)
 {
   SIM_Datetime result;
   uint8_t resp[22];
@@ -144,7 +144,7 @@ SIM_Datetime SIM_GetTime(SIM_HandlerTypedef *hsim)
 }
 
 
-void SIM_HashTime(SIM_HandlerTypedef *hsim, char *hashed)
+void SIM_HashTime(SIM_HandlerTypeDef *hsim, char *hashed)
 {
   SIM_Datetime dt;
   uint8_t *dtBytes = (uint8_t *) &dt;
@@ -163,7 +163,7 @@ void SIM_HashTime(SIM_HandlerTypedef *hsim, char *hashed)
 }
 
 
-static void onNetOpen(SIM_HandlerTypedef *hsim)
+static void onNetOpen(SIM_HandlerTypeDef *hsim)
 {
   if(!SIM_IS_STATUS(hsim, SIM_STAT_NET_OPENING)) return;
 
@@ -183,7 +183,7 @@ static void onNetOpen(SIM_HandlerTypedef *hsim)
 }
 
 
-static void onSockReceive(SIM_HandlerTypedef *hsim)
+static void onSockReceive(SIM_HandlerTypeDef *hsim)
 {
   const uint8_t *nextBuf = NULL;
   char linkNum_str[2];
@@ -212,7 +212,7 @@ static void onSockReceive(SIM_HandlerTypedef *hsim)
 }
 
 
-static void onSockClose(SIM_HandlerTypedef *hsim)
+static void onSockClose(SIM_HandlerTypeDef *hsim)
 {
   uint8_t linkNum;
   char linkNum_str[2];
@@ -233,7 +233,7 @@ static void onSockClose(SIM_HandlerTypedef *hsim)
 }
 
 
-static uint16_t getData(SIM_HandlerTypedef *hsim,
+static uint16_t getData(SIM_HandlerTypeDef *hsim,
                         uint8_t *respData, uint16_t rdsize,
                         uint32_t timeout)
 {

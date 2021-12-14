@@ -48,7 +48,7 @@ typedef struct {
 } SIM_SockListener;
 
 typedef struct {
-  STRM_handlerTypedef *dmaStreamer;
+  STRM_handlerTypeDef *dmaStreamer;
   uint8_t buffer[SIM_BUFFER_SIZE];
   uint16_t bufferLen;
   uint8_t status;
@@ -58,7 +58,7 @@ typedef struct {
     uint32_t (*onOpened)(void);
     SIM_SockListener* sockets[SIM_MAX_SOCKET];
   } net;
-} SIM_HandlerTypedef;
+} SIM_HandlerTypeDef;
 
 typedef struct {
   uint8_t year;
@@ -70,16 +70,16 @@ typedef struct {
 } SIM_Datetime;
 
 
-void SIM_LockCMD(SIM_HandlerTypedef*);
-void SIM_UnlockCMD(SIM_HandlerTypedef*);
+void SIM_LockCMD(SIM_HandlerTypeDef*);
+void SIM_UnlockCMD(SIM_HandlerTypeDef*);
 
-void SIM_Init(SIM_HandlerTypedef*, STRM_handlerTypedef*);
-void SIM_checkAsyncResponse(SIM_HandlerTypedef*, uint32_t timeout);
-uint16_t SIM_checkResponse(SIM_HandlerTypedef*, uint32_t timeout);
-void SIM_CheckAT(SIM_HandlerTypedef*);
-SIM_Datetime SIM_GetTime(SIM_HandlerTypedef*);
-void SIM_HashTime(SIM_HandlerTypedef*, char *hashed);
-void SIM_SendSms(SIM_HandlerTypedef*);
+void SIM_Init(SIM_HandlerTypeDef*, STRM_handlerTypeDef*);
+void SIM_checkAsyncResponse(SIM_HandlerTypeDef*, uint32_t timeout);
+uint16_t SIM_checkResponse(SIM_HandlerTypeDef*, uint32_t timeout);
+void SIM_CheckAT(SIM_HandlerTypeDef*);
+SIM_Datetime SIM_GetTime(SIM_HandlerTypeDef*);
+void SIM_HashTime(SIM_HandlerTypeDef*, char *hashed);
+void SIM_SendSms(SIM_HandlerTypeDef*);
 
 // MACROS
 #define SIM_IS_STATUS(hsim, stat) (((hsim)->status & (stat)) != (stat))

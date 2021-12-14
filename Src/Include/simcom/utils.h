@@ -10,12 +10,12 @@
 
 #include "../simcom.h"
 
-void SIM_SendCMD(SIM_HandlerTypedef *hsim, const char *data, uint16_t size);
-void SIM_SendData(SIM_HandlerTypedef *hsim, const uint8_t *data, uint16_t size);
-uint8_t SIM_WaitResponse(SIM_HandlerTypedef *hsim,
+void SIM_SendCMD(SIM_HandlerTypeDef *hsim, const char *data, uint16_t size);
+void SIM_SendData(SIM_HandlerTypeDef *hsim, const uint8_t *data, uint16_t size);
+uint8_t SIM_WaitResponse(SIM_HandlerTypeDef *hsim,
                             const char *respCode, uint16_t rcsize,
                             uint32_t timeout);
-uint8_t SIM_GetResponse(SIM_HandlerTypedef *hsim,
+uint8_t SIM_GetResponse(SIM_HandlerTypeDef *hsim,
                         const char *respCode, uint16_t rcsize,
                         uint8_t *respData, uint16_t rdsize,
                         uint8_t getRespType,

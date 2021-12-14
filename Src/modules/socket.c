@@ -14,7 +14,7 @@
 #include <string.h>
 
 
-void SIM_NetOpen(SIM_HandlerTypedef *hsim)
+void SIM_NetOpen(SIM_HandlerTypeDef *hsim)
 {
   uint8_t resp;
 
@@ -49,7 +49,7 @@ void SIM_NetOpen(SIM_HandlerTypedef *hsim)
  * return linknum if connected
  * return -1 if not connected
  */
-int8_t SIM_SockOpenTCPIP(SIM_HandlerTypedef *hsim, const char *host, uint16_t port)
+int8_t SIM_SockOpenTCPIP(SIM_HandlerTypeDef *hsim, const char *host, uint16_t port)
 {
   int8_t linkNum = -1;
   char cmd[128];
@@ -83,14 +83,14 @@ int8_t SIM_SockOpenTCPIP(SIM_HandlerTypedef *hsim, const char *host, uint16_t po
 }
 
 
-void SIM_SockClose(SIM_HandlerTypedef *hsim, uint8_t linkNum)
+void SIM_SockClose(SIM_HandlerTypeDef *hsim, uint8_t linkNum)
 {
   SIM_LockCMD(hsim);
   SIM_UnlockCMD(hsim);
 }
 
 
-void SIM_SockSendData(SIM_HandlerTypedef *hsim, int8_t linkNum, const uint8_t *data, uint16_t length)
+void SIM_SockSendData(SIM_HandlerTypeDef *hsim, int8_t linkNum, const uint8_t *data, uint16_t length)
 {
   char cmd[20];
   uint8_t resp;
@@ -110,13 +110,13 @@ void SIM_SockSendData(SIM_HandlerTypedef *hsim, int8_t linkNum, const uint8_t *d
 }
 
 
-void SIM_SockAddListener(SIM_HandlerTypedef *hsim, uint8_t linkNum, SIM_SockListener *listener)
+void SIM_SockAddListener(SIM_HandlerTypeDef *hsim, uint8_t linkNum, SIM_SockListener *listener)
 {
   hsim->net.sockets[linkNum] = listener;
 }
 
 
-void SIM_SockRemoveListener(SIM_HandlerTypedef *hsim, uint8_t linkNum)
+void SIM_SockRemoveListener(SIM_HandlerTypeDef *hsim, uint8_t linkNum)
 {
   hsim->net.sockets[linkNum] = NULL;
 }
@@ -141,7 +141,7 @@ void SIM_SOCK_SetBuffer(SIM_Socket *sock, uint8_t *buffer, uint16_t size)
   sock->listener.bufferSize = size;
 }
 
-int8_t SIM_SOCK_Open(SIM_Socket *sock, SIM_HandlerTypedef *hsim)
+int8_t SIM_SOCK_Open(SIM_Socket *sock, SIM_HandlerTypeDef *hsim)
 {
   int8_t linkNum = -1;
 
