@@ -44,6 +44,7 @@ void    SIM_SockClose(SIM_HandlerTypeDef*, uint8_t linkNum);
 void    SIM_SockAddListener(SIM_HandlerTypeDef*, uint8_t linkNum, SIM_SockListener*);
 void    SIM_SockRemoveListener(SIM_HandlerTypeDef*, uint8_t linkNum);
 void    SIM_SockSendData(SIM_HandlerTypeDef*, int8_t linkNum, const uint8_t *data, uint16_t length);
+uint8_t SIM_NetCheckAsyncResponse(SIM_HandlerTypeDef*);
 
 // socket method
 void      SIM_SOCK_SetAddr(SIM_Socket*, const char *host, uint16_t port);

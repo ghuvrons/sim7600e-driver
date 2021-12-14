@@ -41,8 +41,8 @@
 typedef uint8_t (*asyncResponseHandler) (uint16_t bufLen);
 
 typedef struct {
-  void      (*onReceive)(uint16_t);
-  uint16_t  (*onClose)(void);
+  void      (*onReceived)(uint16_t);
+  uint16_t  (*onClosed)(void);
   uint16_t  bufferSize;
   uint8_t   *buffer;
 } SIM_SockListener;
@@ -74,8 +74,8 @@ void SIM_LockCMD(SIM_HandlerTypeDef*);
 void SIM_UnlockCMD(SIM_HandlerTypeDef*);
 
 void          SIM_Init(SIM_HandlerTypeDef*, STRM_handlerTypeDef*);
-void          SIM_checkAsyncResponse(SIM_HandlerTypeDef*, uint32_t timeout);
-uint16_t      SIM_checkResponse(SIM_HandlerTypeDef*, uint32_t timeout);
+void          SIM_CheckAsyncResponse(SIM_HandlerTypeDef*, uint32_t timeout);
+void          SIM_HandleAsyncResponse(SIM_HandlerTypeDef*);
 void          SIM_CheckAT(SIM_HandlerTypeDef*);
 SIM_Datetime  SIM_GetTime(SIM_HandlerTypeDef*);
 void          SIM_HashTime(SIM_HandlerTypeDef*, char *hashed);
@@ -88,9 +88,9 @@ void          SIM_SendSms(SIM_HandlerTypeDef*);
 
 #define SIM_RESET(hsim) {\
   for (uint8_t i = 0; i < SIM_MAX_SOCKET; i++) {\
-    if ((hsim)->net.sockets[i] != NULL){\
-      if ((hsim)->net.sockets[i]->onClose != NULL) \
-        (hsim)->net.sockets[i]->onClose();\
+    if ((hsim)->net.sockets[i] != NULL) {\
+      if ((hsim)->net.sockets[i]->onClosed != NULL) \
+        (hsim)->net.sockets[i]->onClosed();\
       (hsim)->net.sockets[i] = NULL;\
     }\
   }\

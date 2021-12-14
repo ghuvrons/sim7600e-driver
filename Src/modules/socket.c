@@ -12,6 +12,38 @@
 #include "../Include/simcom/socket.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+
+// event handlers
+static void onNetOpen(SIM_HandlerTypeDef*);
+static void onSockReceive(SIM_HandlerTypeDef*);
+static void onSockClose(SIM_HandlerTypeDef*);
+
+
+uint8_t SIM_NetCheckAsyncResponse(SIM_HandlerTypeDef *hsim)
+{
+  uint8_t isGet = 0;
+
+  if ((isGet = SIM_IsResponse(hsim, "+RECEIVE", 8))) {
+    onSockReceive(hsim);
+  }
+
+  else if ((isGet = (hsim->bufferLen == 11 && SIM_IsResponse(hsim, "+NETOPEN", 8)))) {
+    onNetOpen(hsim);
+  }
+
+  else if ((isGet = SIM_IsResponse(hsim, "+IPCLOSE", 8))) {
+    onSockClose(hsim);
+  }
+
+  else if ((isGet = SIM_IsResponse(hsim, "+CIPEVENT", 9))) {
+    if (strncmp((const char *)&(hsim->buffer[11]), "NETWORK CLOSED", 14)) {
+      SIM_UNSET_STATUS(hsim, SIM_STAT_NET_OPEN);
+    }
+  }
+
+  return isGet;
+}
 
 
 void SIM_NetOpen(SIM_HandlerTypeDef *hsim)
@@ -175,7 +207,79 @@ uint16_t SIM_SOCK_SendData(SIM_Socket *sock, const uint8_t *data, uint16_t lengt
 }
 
 
-void SIM_SOCK_OnReceiveData(SIM_Socket *sock, void (*onReceive)(uint16_t))
+void SIM_SOCK_OnReceiveData(SIM_Socket *sock, void (*onReceived)(uint16_t))
 {
-  sock->listener.onReceive = onReceive;
+  sock->listener.onReceived = onReceived;
 }
+
+
+
+static void onNetOpen(SIM_HandlerTypeDef *hsim)
+{
+  if (!SIM_IS_STATUS(hsim, SIM_STAT_NET_OPENING)) return;
+
+  // skip string "+NETOPEN: " and read next data
+  if (hsim->buffer[10] == '0') {
+    SIM_UNSET_STATUS(hsim, SIM_STAT_NET_OPENING);
+    SIM_SET_STATUS(hsim, SIM_STAT_NET_OPEN);
+
+    // TCP/IP Config
+    SIM_SendCMD(hsim, "AT+CIPCCFG=10,0,1,1,1,1,10000", 29);
+    if (SIM_IsResponseOK(hsim)) {
+    }
+  }
+
+  else {
+    SIM_UNSET_STATUS(hsim, SIM_STAT_NET_OPENING);
+  }
+}
+
+
+static void onSockReceive(SIM_HandlerTypeDef *hsim)
+{
+  const uint8_t *nextBuf = NULL;
+  char linkNum_str[2];
+  char dataLen_str[5];
+  uint8_t linkNum;
+  uint16_t dataLen;
+  SIM_SockListener *sockListener;
+
+  memset(linkNum_str, 0, 2);
+  memset(dataLen_str, 0, 5);
+
+  // skip string "+RECEIVE" and read next data
+  nextBuf = SIM_ParseStr(&hsim->buffer[9], ',', 0, (uint8_t*) linkNum_str);
+  SIM_ParseStr(nextBuf, ',', 0, (uint8_t*) dataLen_str);
+  linkNum = (uint8_t) atoi(linkNum_str);
+  dataLen = (uint16_t) atoi(dataLen_str);
+
+  if (linkNum < SIM_MAX_SOCKET && hsim->net.sockets[linkNum] != NULL) {
+    sockListener = hsim->net.sockets[linkNum];
+    if (dataLen > sockListener->bufferSize) dataLen = sockListener->bufferSize;
+
+    dataLen = SIM_GetData(hsim, sockListener->buffer, dataLen, 1000);
+    if (sockListener->onReceived != NULL)
+      sockListener->onReceived(dataLen);
+  }
+}
+
+
+static void onSockClose(SIM_HandlerTypeDef *hsim)
+{
+  uint8_t linkNum;
+  char linkNum_str[2];
+  SIM_SockListener *sockListener;
+
+  memset(linkNum_str, 0, 2);
+  // skip string "+IPCLOSE" and read next data
+  SIM_ParseStr(&hsim->buffer[10], ',', 0, (uint8_t*) linkNum_str);
+  linkNum = (uint8_t) atoi(linkNum_str);
+
+  if (linkNum < SIM_MAX_SOCKET && hsim->net.sockets[linkNum] != NULL) {
+    sockListener = hsim->net.sockets[linkNum];
+    if (sockListener->onClosed != NULL)
+      sockListener->onClosed();
+    hsim->net.sockets[linkNum] = NULL;
+  }
+}
+
