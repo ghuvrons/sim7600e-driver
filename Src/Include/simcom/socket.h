@@ -5,6 +5,7 @@
  *      Author: janoko
  */
 
+#ifdef SIM_EN_FEATURE_SOCKET
 #ifndef SIM5320E_INC_SIMNET_H_
 #define SIM5320E_INC_SIMNET_H_
 
@@ -55,3 +56,4 @@ uint16_t  SIM_SOCK_SendData(SIM_Socket*, const uint8_t *data, uint16_t length);
 void      SIM_SOCK_OnReceiveData(SIM_Socket*, void (*onReceive)(uint16_t));
 
 #endif /* SIM5300E_INC_SIMNET_H_ */
+#endif /* SIM_EN_FEATURE_SOCKET */

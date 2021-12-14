@@ -9,10 +9,10 @@
 #define SIM5300E_INC_SIMCOM_H_
 
 #include "stm32f4xx_hal.h"
+#include "simcom/conf.h"
 #include <dma_streamer.h>
 
 #define SIM_BUFFER_SIZE 256
-#define SIM_MAX_SOCKET  4
 
 /**
  * SIM STATUS
@@ -23,13 +23,13 @@
  *      4   is net opened
  */
 
-#define SIM_STAT_START        0x01
-#define SIM_STAT_CONNECT      0x02
-#define SIM_STAT_UART_READING 0x04
-#define SIM_STAT_UART_WRITING 0x06
-#define SIM_STAT_CMD_RUNNING  0x10
-#define SIM_STAT_NET_OPEN     0x20
-#define SIM_STAT_NET_OPENING  0x40
+#define SIM_STATUS_START        0x01
+#define SIM_STATUS_CONNECT      0x02
+#define SIM_STATUS_UART_READING 0x04
+#define SIM_STATUS_UART_WRITING 0x08
+#define SIM_STATUS_CMD_RUNNING  0x10
+#define SIM_STATUS_NET_OPEN     0x20
+#define SIM_STATUS_NET_OPENING  0x40
 
 #define SIM_RESP_TIMEOUT  0
 #define SIM_RESP_ERROR    1
@@ -48,16 +48,19 @@ typedef struct {
 } SIM_SockListener;
 
 typedef struct {
+  uint8_t             status;
   STRM_handlerTypeDef *dmaStreamer;
   uint8_t             buffer[SIM_BUFFER_SIZE];
   uint16_t            bufferLen;
-  uint8_t             status;
   uint32_t            timeout;
 
+#ifdef SIM_EN_FEATURE_SOCKET
   struct {
     uint32_t          (*onOpened)(void);
-    SIM_SockListener  *sockets[SIM_MAX_SOCKET];
+    SIM_SockListener  *sockets[SIM_NUM_OF_SOCKET];
   } net;
+#endif
+
 } SIM_HandlerTypeDef;
 
 typedef struct {
@@ -85,16 +88,5 @@ void          SIM_SendSms(SIM_HandlerTypeDef*);
 #define SIM_IS_STATUS(hsim, stat)     (((hsim)->status & (stat)) != (stat))
 #define SIM_SET_STATUS(hsim, stat)    {(hsim)->status |= (stat);}
 #define SIM_UNSET_STATUS(hsim, stat)  {(hsim)->status &= ~(stat);}
-
-#define SIM_RESET(hsim) {\
-  for (uint8_t i = 0; i < SIM_MAX_SOCKET; i++) {\
-    if ((hsim)->net.sockets[i] != NULL) {\
-      if ((hsim)->net.sockets[i]->onClosed != NULL) \
-        (hsim)->net.sockets[i]->onClosed();\
-      (hsim)->net.sockets[i] = NULL;\
-    }\
-  }\
-  (hsim)->status = 0;\
-}
 
 #endif /* SIM5300E_INC_SIMCOM_H_ */

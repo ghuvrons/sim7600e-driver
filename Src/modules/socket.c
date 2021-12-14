@@ -6,6 +6,7 @@
  */
 
 
+
 #include "../Include/simcom.h"
 #include "../Include/simcom/conf.h"
 #include "../Include/simcom/utils.h"
@@ -14,6 +15,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#ifdef SIM_EN_FEATURE_SOCKET
 // event handlers
 static void onNetOpen(SIM_HandlerTypeDef*);
 static void onSockReceive(SIM_HandlerTypeDef*);
@@ -38,7 +40,7 @@ uint8_t SIM_NetCheckAsyncResponse(SIM_HandlerTypeDef *hsim)
 
   else if ((isGet = SIM_IsResponse(hsim, "+CIPEVENT", 9))) {
     if (strncmp((const char *)&(hsim->buffer[11]), "NETWORK CLOSED", 14)) {
-      SIM_UNSET_STATUS(hsim, SIM_STAT_NET_OPEN);
+      SIM_UNSET_STATUS(hsim, SIM_STATUS_NET_OPEN);
     }
   }
 
@@ -50,7 +52,7 @@ void SIM_NetOpen(SIM_HandlerTypeDef *hsim)
 {
   uint8_t resp;
 
-  if (SIM_IS_STATUS(hsim, SIM_STAT_NET_OPENING)) return;
+  if (SIM_IS_STATUS(hsim, SIM_STATUS_NET_OPENING)) return;
 
   SIM_LockCMD(hsim);
 
@@ -58,7 +60,7 @@ void SIM_NetOpen(SIM_HandlerTypeDef *hsim)
   SIM_SendCMD(hsim, "AT+NETOPEN?", 11);
   if (SIM_GetResponse(hsim, "+NETOPEN", 8, &resp, 1, SIM_GETRESP_WAIT_OK, 1000) == SIM_RESP_OK) {
     if (resp == '1') { // net already open;
-      SIM_SET_STATUS(hsim, SIM_STAT_NET_OPEN);
+      SIM_SET_STATUS(hsim, SIM_STATUS_NET_OPEN);
 
       // TCP/IP Config
       SIM_SendCMD(hsim, "AT+CIPCCFG=10,0,1,1,1,1,10000", 29);
@@ -68,7 +70,7 @@ void SIM_NetOpen(SIM_HandlerTypeDef *hsim)
       SIM_SendCMD(hsim, "AT+NETOPEN", 10);
       SIM_Delay(1000);
       if (SIM_IsResponseOK(hsim)){
-        SIM_SET_STATUS(hsim, SIM_STAT_NET_OPENING);
+        SIM_SET_STATUS(hsim, SIM_STATUS_NET_OPENING);
       }
     }
   }
@@ -87,12 +89,12 @@ int8_t SIM_SockOpenTCPIP(SIM_HandlerTypeDef *hsim, const char *host, uint16_t po
   char cmd[128];
   uint8_t resp[4];
 
-  if (!SIM_IS_STATUS(hsim, SIM_STAT_NET_OPEN))
+  if (!SIM_IS_STATUS(hsim, SIM_STATUS_NET_OPEN))
   {
     return -1;
   }
   
-  for (int16_t i = 0; i < SIM_MAX_SOCKET; i++) {
+  for (int16_t i = 0; i < SIM_NUM_OF_SOCKET; i++) {
     if (hsim->net.sockets[i] == NULL) {
       linkNum = i;
       break;
@@ -216,12 +218,12 @@ void SIM_SOCK_OnReceiveData(SIM_Socket *sock, void (*onReceived)(uint16_t))
 
 static void onNetOpen(SIM_HandlerTypeDef *hsim)
 {
-  if (!SIM_IS_STATUS(hsim, SIM_STAT_NET_OPENING)) return;
+  if (!SIM_IS_STATUS(hsim, SIM_STATUS_NET_OPENING)) return;
 
   // skip string "+NETOPEN: " and read next data
   if (hsim->buffer[10] == '0') {
-    SIM_UNSET_STATUS(hsim, SIM_STAT_NET_OPENING);
-    SIM_SET_STATUS(hsim, SIM_STAT_NET_OPEN);
+    SIM_UNSET_STATUS(hsim, SIM_STATUS_NET_OPENING);
+    SIM_SET_STATUS(hsim, SIM_STATUS_NET_OPEN);
 
     // TCP/IP Config
     SIM_SendCMD(hsim, "AT+CIPCCFG=10,0,1,1,1,1,10000", 29);
@@ -230,7 +232,7 @@ static void onNetOpen(SIM_HandlerTypeDef *hsim)
   }
 
   else {
-    SIM_UNSET_STATUS(hsim, SIM_STAT_NET_OPENING);
+    SIM_UNSET_STATUS(hsim, SIM_STATUS_NET_OPENING);
   }
 }
 
@@ -253,7 +255,7 @@ static void onSockReceive(SIM_HandlerTypeDef *hsim)
   linkNum = (uint8_t) atoi(linkNum_str);
   dataLen = (uint16_t) atoi(dataLen_str);
 
-  if (linkNum < SIM_MAX_SOCKET && hsim->net.sockets[linkNum] != NULL) {
+  if (linkNum < SIM_NUM_OF_SOCKET && hsim->net.sockets[linkNum] != NULL) {
     sockListener = hsim->net.sockets[linkNum];
     if (dataLen > sockListener->bufferSize) dataLen = sockListener->bufferSize;
 
@@ -275,7 +277,7 @@ static void onSockClose(SIM_HandlerTypeDef *hsim)
   SIM_ParseStr(&hsim->buffer[10], ',', 0, (uint8_t*) linkNum_str);
   linkNum = (uint8_t) atoi(linkNum_str);
 
-  if (linkNum < SIM_MAX_SOCKET && hsim->net.sockets[linkNum] != NULL) {
+  if (linkNum < SIM_NUM_OF_SOCKET && hsim->net.sockets[linkNum] != NULL) {
     sockListener = hsim->net.sockets[linkNum];
     if (sockListener->onClosed != NULL)
       sockListener->onClosed();
@@ -283,3 +285,4 @@ static void onSockClose(SIM_HandlerTypeDef *hsim)
   }
 }
 
+#endif /* SIM_EN_FEATURE_SOCKET */

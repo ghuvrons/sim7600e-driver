@@ -17,6 +17,7 @@
 
 
 // static function initiation
+static void SIM_reset(SIM_HandlerTypeDef*);
 static void str2Time(SIM_Datetime*, const char*);
 
 
@@ -24,15 +25,15 @@ static void str2Time(SIM_Datetime*, const char*);
 
 __weak void SIM_LockCMD(SIM_HandlerTypeDef *hsim)
 {
-  while(SIM_IS_STATUS(hsim, SIM_STAT_CMD_RUNNING)){
+  while(SIM_IS_STATUS(hsim, SIM_STATUS_CMD_RUNNING)){
     SIM_Delay(1);
   }
-  SIM_SET_STATUS(hsim, SIM_STAT_CMD_RUNNING);
+  SIM_SET_STATUS(hsim, SIM_STATUS_CMD_RUNNING);
 }
 
 __weak void SIM_UnlockCMD(SIM_HandlerTypeDef *hsim)
 {
-  SIM_UNSET_STATUS(hsim, SIM_STAT_CMD_RUNNING);
+  SIM_UNSET_STATUS(hsim, SIM_STATUS_CMD_RUNNING);
 }
 
 
@@ -65,14 +66,17 @@ void SIM_HandleAsyncResponse(SIM_HandlerTypeDef *hsim)
 {
   // check async response
   if (SIM_IsResponse(hsim, "START", 5)) {
-    SIM_RESET(hsim);
+    SIM_reset(hsim);
   }
 
-  else if (!SIM_IS_STATUS(hsim, SIM_STAT_START) && SIM_IsResponse(hsim, "PB ", 3)) {
-    SIM_SET_STATUS(hsim, SIM_STAT_START);
+  else if (!SIM_IS_STATUS(hsim, SIM_STATUS_START) && SIM_IsResponse(hsim, "PB ", 3)) {
+    SIM_SET_STATUS(hsim, SIM_STATUS_START);
   }
 
+#ifdef SIM_EN_FEATURE_SOCKET
   else if (SIM_NetCheckAsyncResponse(hsim)) return;
+#endif
+
 }
 
 
@@ -85,9 +89,9 @@ void SIM_CheckAT(SIM_HandlerTypeDef *hsim)
 
   // wait response
   if (SIM_IsResponseOK(hsim)){
-    SIM_SET_STATUS(hsim, SIM_STAT_CONNECT);
+    SIM_SET_STATUS(hsim, SIM_STATUS_CONNECT);
   } else {
-    SIM_UNSET_STATUS(hsim, SIM_STAT_CONNECT);
+    SIM_UNSET_STATUS(hsim, SIM_STATUS_CONNECT);
   }
   SIM_UnlockCMD(hsim);
 }
@@ -128,6 +132,22 @@ void SIM_HashTime(SIM_HandlerTypeDef *hsim, char *hashed)
   }
 }
 
+
+static void SIM_reset(SIM_HandlerTypeDef *hsim)
+{
+
+#ifdef SIM_EN_FEATURE_SOCKET
+  for (uint8_t i = 0; i < SIM_NUM_OF_SOCKET; i++) {
+    if (hsim->net.sockets[i] != NULL) {
+      if (hsim->net.sockets[i]->onClosed != NULL) 
+        hsim->net.sockets[i]->onClosed();
+      hsim->net.sockets[i] = NULL;
+    }
+  }
+#endif
+
+  hsim->status = 0;
+}
 
 static void str2Time(SIM_Datetime *dt, const char *str)
 {
