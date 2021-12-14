@@ -135,7 +135,7 @@ SIM_Datetime SIM_GetTime(SIM_HandlerTypeDef *hsim)
   SIM_LockCMD(hsim);
 
   SIM_SendCMD(hsim, "AT+CCLK?", 8);
-  if(SIM_GetResponse(hsim, "+CCLK", 5, resp, 22, SIM_GETRESP_WAIT_OK, 2000) == SIM_RESP_OK){
+  if (SIM_GetResponse(hsim, "+CCLK", 5, resp, 22, SIM_GETRESP_WAIT_OK, 2000) == SIM_RESP_OK) {
     str2Time(&result, (char*)&resp[1]);
   }
   SIM_UnlockCMD(hsim);
@@ -149,12 +149,12 @@ void SIM_HashTime(SIM_HandlerTypeDef *hsim, char *hashed)
   SIM_Datetime dt;
   uint8_t *dtBytes = (uint8_t *) &dt;
   dt = SIM_GetTime(hsim);
-  for(uint8_t i = 0; i < 6; i++){
+  for (uint8_t i = 0; i < 6; i++) {
     *hashed = (*dtBytes) + 0x41 + i;
-    if(*hashed > 0x7A){
+    if (*hashed > 0x7A) {
       *hashed = 0x7A - i;
     }
-    if(*hashed < 0x30){
+    if (*hashed < 0x30) {
       *hashed = 0x30 + i;
     }
     dtBytes++;
@@ -165,18 +165,19 @@ void SIM_HashTime(SIM_HandlerTypeDef *hsim, char *hashed)
 
 static void onNetOpen(SIM_HandlerTypeDef *hsim)
 {
-  if(!SIM_IS_STATUS(hsim, SIM_STAT_NET_OPENING)) return;
+  if (!SIM_IS_STATUS(hsim, SIM_STAT_NET_OPENING)) return;
 
   // skip string "+NETOPEN: " and read next data
-  if(hsim->buffer[10] == '0'){
+  if (hsim->buffer[10] == '0') {
     SIM_UNSET_STATUS(hsim, SIM_STAT_NET_OPENING);
     SIM_SET_STATUS(hsim, SIM_STAT_NET_OPEN);
 
     // TCP/IP Config
     SIM_SendCMD(hsim, "AT+CIPCCFG=10,0,1,1,1,1,10000", 29);
-    if (SIM_IsResponseOK(hsim)){
+    if (SIM_IsResponseOK(hsim)) {
     }
   }
+
   else {
     SIM_UNSET_STATUS(hsim, SIM_STAT_NET_OPENING);
   }
@@ -201,12 +202,12 @@ static void onSockReceive(SIM_HandlerTypeDef *hsim)
   linkNum = (uint8_t) atoi(linkNum_str);
   dataLen = (uint16_t) atoi(dataLen_str);
 
-  if(linkNum < SIM_MAX_SOCKET && hsim->net.sockets[linkNum] != NULL)
-  {
+  if (linkNum < SIM_MAX_SOCKET && hsim->net.sockets[linkNum] != NULL) {
     sockListener = hsim->net.sockets[linkNum];
-    if(dataLen > sockListener->bufferSize) dataLen = sockListener->bufferSize;
+    if (dataLen > sockListener->bufferSize) dataLen = sockListener->bufferSize;
+
     dataLen = getData(hsim, sockListener->buffer, dataLen, 1000);
-    if(sockListener->onReceive != NULL)
+    if (sockListener->onReceive != NULL)
       sockListener->onReceive(dataLen);
   }
 }
@@ -223,10 +224,9 @@ static void onSockClose(SIM_HandlerTypeDef *hsim)
   parseStr(&hsim->buffer[10], ',', 0, (uint8_t*) linkNum_str);
   linkNum = (uint8_t) atoi(linkNum_str);
 
-  if(linkNum < SIM_MAX_SOCKET && hsim->net.sockets[linkNum] != NULL)
-  {
+  if (linkNum < SIM_MAX_SOCKET && hsim->net.sockets[linkNum] != NULL) {
     sockListener = hsim->net.sockets[linkNum];
-    if(sockListener->onClose != NULL)
+    if (sockListener->onClose != NULL)
       sockListener->onClose();
     hsim->net.sockets[linkNum] = NULL;
   }
@@ -240,11 +240,12 @@ static uint16_t getData(SIM_HandlerTypeDef *hsim,
   uint16_t len = 0;
   uint32_t tickstart = SIM_GetTick();
 
-  if(timeout == 0) timeout = hsim->timeout;
-  while(len < rdsize){
-    if((SIM_GetTick() - tickstart) >= timeout) break;
+  if (timeout == 0) timeout = hsim->timeout;
+  while (len < rdsize) {
+    if ((SIM_GetTick() - tickstart) >= timeout) break;
+
     len += STRM_ReadBuffer(hsim->dmaStreamer, respData, rdsize, STRM_BREAK_NONE);
-    if(len == 0) SIM_Delay(1);
+    if (len == 0) SIM_Delay(1);
   }
   return len;
 }
@@ -256,19 +257,22 @@ static const uint8_t * parseStr(const uint8_t *separator, uint8_t delimiter, int
 
   while (1)
   {
-    if(*separator == 0 || *separator == '\r') break;
-    if(!isInStr && *separator == delimiter){
+    if (*separator == 0 || *separator == '\r') break;
+
+    if (!isInStr && *separator == delimiter) {
       idx--;
-      if(idx < 0){
+      if (idx < 0) {
         separator++;
         break;
       }
     }
-    else if(*separator == '\"'){
-      if(isInStr) isInStr = 0;
-      else        isInStr = 1;
+
+    else if (*separator == '\"') {
+      if (isInStr)  isInStr = 0;
+      else          isInStr = 1;
     }
-    else if (idx == 0){
+
+    else if (idx == 0) {
       *output = *separator;
       output++;
     }
@@ -282,7 +286,7 @@ static const uint8_t * parseStr(const uint8_t *separator, uint8_t delimiter, int
 static void str2Time(SIM_Datetime *dt, const char *str)
 {
   uint8_t *dtbytes = (uint8_t*) dt;
-  for(uint8_t i = 0; i < 6; i++){
+  for (uint8_t i = 0; i < 6; i++) {
     *dtbytes = (uint8_t) atoi(str);
     dtbytes++;
     str += 3;

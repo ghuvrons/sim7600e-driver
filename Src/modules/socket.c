@@ -18,7 +18,7 @@ void SIM_NetOpen(SIM_HandlerTypeDef *hsim)
 {
   uint8_t resp;
 
-  if(SIM_IS_STATUS(hsim, SIM_STAT_NET_OPENING)) return;
+  if (SIM_IS_STATUS(hsim, SIM_STAT_NET_OPENING)) return;
 
   SIM_LockCMD(hsim);
 
@@ -55,18 +55,18 @@ int8_t SIM_SockOpenTCPIP(SIM_HandlerTypeDef *hsim, const char *host, uint16_t po
   char cmd[128];
   uint8_t resp[4];
 
-  if(!SIM_IS_STATUS(hsim, SIM_STAT_NET_OPEN))
+  if (!SIM_IS_STATUS(hsim, SIM_STAT_NET_OPEN))
   {
     return -1;
   }
   
-  for(int16_t i = 0; i < SIM_MAX_SOCKET; i++){
-    if(hsim->net.sockets[i] == NULL){
+  for (int16_t i = 0; i < SIM_MAX_SOCKET; i++) {
+    if (hsim->net.sockets[i] == NULL) {
       linkNum = i;
       break;
     }
   }
-  if(linkNum == -1) return linkNum;
+  if (linkNum == -1) return linkNum;
 
   SIM_LockCMD(hsim);
 
@@ -74,8 +74,8 @@ int8_t SIM_SockOpenTCPIP(SIM_HandlerTypeDef *hsim, const char *host, uint16_t po
   SIM_SendCMD(hsim, cmd, strlen(cmd));
 
   memset(resp, 0, 4);
-  if(SIM_GetResponse(hsim, "+CIPOPEN", 8, resp, 3, SIM_GETRESP_WAIT_OK, 15000) == SIM_RESP_OK){
-    if(resp[3] != '0') linkNum = -1;
+  if (SIM_GetResponse(hsim, "+CIPOPEN", 8, resp, 3, SIM_GETRESP_WAIT_OK, 15000) == SIM_RESP_OK) {
+    if (resp[3] != '0') linkNum = -1;
   }
 
   SIM_UnlockCMD(hsim);
@@ -103,7 +103,7 @@ void SIM_SockSendData(SIM_HandlerTypeDef *hsim, int8_t linkNum, const uint8_t *d
 
   SIM_SendData(hsim, data, length);
   SIM_Delay(5000);
-  if(SIM_GetResponse(hsim, "+CIPSEND", 8, &resp, 1, SIM_GETRESP_WAIT_OK, 5000) == SIM_RESP_OK){
+  if (SIM_GetResponse(hsim, "+CIPSEND", 8, &resp, 1, SIM_GETRESP_WAIT_OK, 5000) == SIM_RESP_OK) {
   }
 
   SIM_UnlockCMD(hsim);
@@ -125,7 +125,7 @@ void SIM_SockRemoveListener(SIM_HandlerTypeDef *hsim, uint8_t linkNum)
 void SIM_SOCK_SetAddr(SIM_Socket *sock, const char *host, uint16_t port)
 {
   char *sockIP = sock->host;
-  while(*host != '\0'){
+  while (*host != '\0') {
     *sockIP = *host;
     host++;
     sockIP++;
@@ -145,9 +145,10 @@ int8_t SIM_SOCK_Open(SIM_Socket *sock, SIM_HandlerTypeDef *hsim)
 {
   int8_t linkNum = -1;
 
-  if(sock->timeout == 0) sock->timeout = SIM_SOCK_DEFAULT_TO;
+  if (sock->timeout == 0) sock->timeout = SIM_SOCK_DEFAULT_TO;
+
   linkNum = SIM_SockOpenTCPIP(hsim, sock->host, sock->port);
-  if(linkNum != -1){
+  if (linkNum != -1){
     SIM_SOCK_SET_STATUS(sock, SIM_SOCK_STATUS_OPEN);
     sock->hsim = hsim;
     sock->linkNum = linkNum;
@@ -168,7 +169,7 @@ void SIM_SOCK_Close(SIM_Socket *sock)
 
 uint16_t SIM_SOCK_SendData(SIM_Socket *sock, const uint8_t *data, uint16_t length)
 {
-  if(!SIM_SOCK_IS_STATUS(sock, SIM_SOCK_STATUS_OPEN)) return 0;
+  if (!SIM_SOCK_IS_STATUS(sock, SIM_SOCK_STATUS_OPEN)) return 0;
   SIM_SockSendData(sock->hsim, sock->linkNum, data, length);
   return 0;
 }

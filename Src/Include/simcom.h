@@ -41,22 +41,22 @@
 typedef uint8_t (*asyncResponseHandler) (uint16_t bufLen);
 
 typedef struct {
-  void (*onReceive)(uint16_t);
-  uint16_t (*onClose)(void);
-  uint16_t bufferSize;
-  uint8_t *buffer;
+  void      (*onReceive)(uint16_t);
+  uint16_t  (*onClose)(void);
+  uint16_t  bufferSize;
+  uint8_t   *buffer;
 } SIM_SockListener;
 
 typedef struct {
   STRM_handlerTypeDef *dmaStreamer;
-  uint8_t buffer[SIM_BUFFER_SIZE];
-  uint16_t bufferLen;
-  uint8_t status;
-  uint32_t timeout;
+  uint8_t             buffer[SIM_BUFFER_SIZE];
+  uint16_t            bufferLen;
+  uint8_t             status;
+  uint32_t            timeout;
 
   struct {
-    uint32_t (*onOpened)(void);
-    SIM_SockListener* sockets[SIM_MAX_SOCKET];
+    uint32_t          (*onOpened)(void);
+    SIM_SockListener  *sockets[SIM_MAX_SOCKET];
   } net;
 } SIM_HandlerTypeDef;
 
@@ -73,23 +73,24 @@ typedef struct {
 void SIM_LockCMD(SIM_HandlerTypeDef*);
 void SIM_UnlockCMD(SIM_HandlerTypeDef*);
 
-void SIM_Init(SIM_HandlerTypeDef*, STRM_handlerTypeDef*);
-void SIM_checkAsyncResponse(SIM_HandlerTypeDef*, uint32_t timeout);
-uint16_t SIM_checkResponse(SIM_HandlerTypeDef*, uint32_t timeout);
-void SIM_CheckAT(SIM_HandlerTypeDef*);
-SIM_Datetime SIM_GetTime(SIM_HandlerTypeDef*);
-void SIM_HashTime(SIM_HandlerTypeDef*, char *hashed);
-void SIM_SendSms(SIM_HandlerTypeDef*);
+void          SIM_Init(SIM_HandlerTypeDef*, STRM_handlerTypeDef*);
+void          SIM_checkAsyncResponse(SIM_HandlerTypeDef*, uint32_t timeout);
+uint16_t      SIM_checkResponse(SIM_HandlerTypeDef*, uint32_t timeout);
+void          SIM_CheckAT(SIM_HandlerTypeDef*);
+SIM_Datetime  SIM_GetTime(SIM_HandlerTypeDef*);
+void          SIM_HashTime(SIM_HandlerTypeDef*, char *hashed);
+void          SIM_SendSms(SIM_HandlerTypeDef*);
 
 // MACROS
-#define SIM_IS_STATUS(hsim, stat) (((hsim)->status & (stat)) != (stat))
-#define SIM_SET_STATUS(hsim, stat) {(hsim)->status |= (stat);}
-#define SIM_UNSET_STATUS(hsim, stat) {(hsim)->status &= ~(stat);}
+#define SIM_IS_STATUS(hsim, stat)     (((hsim)->status & (stat)) != (stat))
+#define SIM_SET_STATUS(hsim, stat)    {(hsim)->status |= (stat);}
+#define SIM_UNSET_STATUS(hsim, stat)  {(hsim)->status &= ~(stat);}
 
 #define SIM_RESET(hsim) {\
-  for(uint8_t i = 0; i < SIM_MAX_SOCKET; i++){\
-    if((hsim)->net.sockets[i] != NULL){\
-      if((hsim)->net.sockets[i]->onClose != NULL) (hsim)->net.sockets[i]->onClose();\
+  for (uint8_t i = 0; i < SIM_MAX_SOCKET; i++) {\
+    if ((hsim)->net.sockets[i] != NULL){\
+      if ((hsim)->net.sockets[i]->onClose != NULL) \
+        (hsim)->net.sockets[i]->onClose();\
       (hsim)->net.sockets[i] = NULL;\
     }\
   }\

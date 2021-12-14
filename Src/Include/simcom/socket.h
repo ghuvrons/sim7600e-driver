@@ -17,8 +17,8 @@
 
 #define SIM_SOCK_STATUS_OPEN  0x01
 
-#define SIM_SOCK_IS_STATUS(sock, stat) SIM_IS_STATUS(sock, stat)
-#define SIM_SOCK_SET_STATUS(sock, stat) SIM_SET_STATUS(sock, stat)
+#define SIM_SOCK_IS_STATUS(sock, stat)    SIM_IS_STATUS(sock, stat)
+#define SIM_SOCK_SET_STATUS(sock, stat)   SIM_SET_STATUS(sock, stat)
 #define SIM_SOCK_UNSET_STATUS(sock, stat) SIM_UNSET_STATUS(sock, stat)
 
 #define SIM_SOCK_SUCCESS 0
@@ -26,31 +26,31 @@
 
 
 typedef struct {
-  SIM_HandlerTypeDef *hsim;
-  uint8_t status;
-  uint8_t linkNum;
-  uint8_t type; // SIM_SOCK_UDP or SIM_SOCK_TCPIP
-  uint32_t timeout;
-  char host[64];
-  uint16_t port;
-  uint8_t *buffer;
-  SIM_SockListener listener;
+  SIM_HandlerTypeDef  *hsim;
+  uint8_t             status;
+  uint8_t             linkNum;
+  uint8_t             type;                 // SIM_SOCK_UDP or SIM_SOCK_TCPIP
+  uint32_t            timeout;
+  char                host[64];
+  uint16_t            port;
+  uint8_t             *buffer;
+  SIM_SockListener    listener;
 } SIM_Socket;
 
 // simcom feature net and socket
-void SIM_NetOpen(SIM_HandlerTypeDef*);
-int8_t SIM_SockOpenTCPIP(SIM_HandlerTypeDef*, const char *host, uint16_t port);
-void SIM_SockClose(SIM_HandlerTypeDef*, uint8_t linkNum);
-void SIM_SockAddListener(SIM_HandlerTypeDef*, uint8_t linkNum, SIM_SockListener*);
-void SIM_SockRemoveListener(SIM_HandlerTypeDef*, uint8_t linkNum);
-void SIM_SockSendData(SIM_HandlerTypeDef*, int8_t linkNum, const uint8_t *data, uint16_t length);
+void    SIM_NetOpen(SIM_HandlerTypeDef*);
+int8_t  SIM_SockOpenTCPIP(SIM_HandlerTypeDef*, const char *host, uint16_t port);
+void    SIM_SockClose(SIM_HandlerTypeDef*, uint8_t linkNum);
+void    SIM_SockAddListener(SIM_HandlerTypeDef*, uint8_t linkNum, SIM_SockListener*);
+void    SIM_SockRemoveListener(SIM_HandlerTypeDef*, uint8_t linkNum);
+void    SIM_SockSendData(SIM_HandlerTypeDef*, int8_t linkNum, const uint8_t *data, uint16_t length);
 
 // socket method
-void SIM_SOCK_SetAddr(SIM_Socket*, const char *host, uint16_t port);
-void SIM_SOCK_SetBuffer(SIM_Socket*, uint8_t *buffer, uint16_t size);
-int8_t SIM_SOCK_Open(SIM_Socket*, SIM_HandlerTypeDef*);
-void SIM_SOCK_Close(SIM_Socket*);
-uint16_t SIM_SOCK_SendData(SIM_Socket*, const uint8_t *data, uint16_t length);
-void SIM_SOCK_OnReceiveData(SIM_Socket*, void (*onReceive)(uint16_t));
+void      SIM_SOCK_SetAddr(SIM_Socket*, const char *host, uint16_t port);
+void      SIM_SOCK_SetBuffer(SIM_Socket*, uint8_t *buffer, uint16_t size);
+int8_t    SIM_SOCK_Open(SIM_Socket*, SIM_HandlerTypeDef*);
+void      SIM_SOCK_Close(SIM_Socket*);
+uint16_t  SIM_SOCK_SendData(SIM_Socket*, const uint8_t *data, uint16_t length);
+void      SIM_SOCK_OnReceiveData(SIM_Socket*, void (*onReceive)(uint16_t));
 
 #endif /* SIM5300E_INC_SIMNET_H_ */
