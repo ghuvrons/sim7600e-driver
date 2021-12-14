@@ -5,11 +5,10 @@
  *      Author: janoko
  */
 
-#ifndef SIM5300E_INC_SIMNET_H_
-#define SIM5300E_INC_SIMNET_H_
+#ifndef SIM5320E_INC_SIMNET_H_
+#define SIM5320E_INC_SIMNET_H_
 
-#include "stm32f4xx_hal.h"
-#include "simcom.h"
+#include "../simcom.h"
 
 #define SIM_SOCK_DEFAULT_TO 2000
 
@@ -38,6 +37,15 @@ typedef struct {
   SIM_SockListener listener;
 } SIM_Socket;
 
+// simcom feature net and socket
+void SIM_NetOpen(SIM_HandlerTypedef*);
+int8_t SIM_SockOpenTCPIP(SIM_HandlerTypedef*, const char *host, uint16_t port);
+void SIM_SockClose(SIM_HandlerTypedef*, uint8_t linkNum);
+void SIM_SockAddListener(SIM_HandlerTypedef*, uint8_t linkNum, SIM_SockListener*);
+void SIM_SockRemoveListener(SIM_HandlerTypedef*, uint8_t linkNum);
+void SIM_SockSendData(SIM_HandlerTypedef*, int8_t linkNum, const uint8_t *data, uint16_t length);
+
+// socket method
 void SIM_SOCK_SetAddr(SIM_Socket*, const char *host, uint16_t port);
 void SIM_SOCK_SetBuffer(SIM_Socket*, uint8_t *buffer, uint16_t size);
 int8_t SIM_SOCK_Open(SIM_Socket*, SIM_HandlerTypedef*);

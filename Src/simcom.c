@@ -8,38 +8,18 @@
 #include "stm32f4xx_hal.h"
 #include "Include/simcom.h"
 #include "Include/simcom/conf.h"
+#include "Include/simcom/utils.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <dma_streamer.h>
 
 
-#define GETRESP_WAIT_OK 0
-#define GETRESP_ONLY_DATA 1
-
-
-// local macro
-
-#define IS_RESP(hsim, resp, bufLen, min_len) \
- ((bufLen) >= (min_len) && strncmp((const char *)(hsim)->buffer, (resp), (min_len)) == 0)
-
-
 // static function initiation
 
-static void sendRequest(SIM_HandlerTypedef *hsim, const char *data, uint16_t size);
-static void sendData(SIM_HandlerTypedef *hsim, const uint8_t *data, uint16_t size);
 static uint16_t getData(SIM_HandlerTypedef *hsim,
                         uint8_t *respData, uint16_t rdsize,
                         uint32_t timeout);
-static uint8_t waitResponse(SIM_HandlerTypedef *hsim,
-                            const char *respCode, uint16_t rcsize,
-                            uint32_t timeout);
-static uint8_t getResponse(SIM_HandlerTypedef *hsim,
-                        const char *respCode, uint16_t rcsize,
-                        uint8_t *respData, uint16_t rdsize,
-                        uint8_t getRespType,
-                        uint32_t timeout);
-static uint8_t isOK(SIM_HandlerTypedef *hsim);
 static const uint8_t * parseStr(const uint8_t *separator, uint8_t delimiter, int idx, uint8_t *output);
 static void str2Time(SIM_Datetime*, const char*);
 // listener
@@ -70,6 +50,10 @@ void SIM_Init(SIM_HandlerTypedef *hsim, STRM_handlerTypedef *dmaStreamer)
   return;
 }
 
+
+/*
+ * Read response per lines at a certain time interval
+ */
 void SIM_checkAsyncResponse(SIM_HandlerTypedef *hsim, uint32_t timeout)
 {
   SIM_LockCMD(hsim);
@@ -78,6 +62,9 @@ void SIM_checkAsyncResponse(SIM_HandlerTypedef *hsim, uint32_t timeout)
 }
 
 
+/*
+ * Read response per lines
+ */
 uint16_t SIM_checkResponse(SIM_HandlerTypedef *hsim, uint32_t timeout)
 {
   uint16_t bufLen = 0;
@@ -90,27 +77,27 @@ uint16_t SIM_checkResponse(SIM_HandlerTypedef *hsim, uint32_t timeout)
     bufLen = STRM_Readline(hsim->dmaStreamer, hsim->buffer, SIM_BUFFER_SIZE, timeout);
     if(bufLen){
       // check async response
-      if (IS_RESP(hsim, "START", bufLen, 3)) {
+      if (SIM_IsResponse(hsim, "START", bufLen, 3)) {
         SIM_RESET(hsim);
       }
 
-      else if (!SIM_IS_STATUS(hsim, SIM_STAT_START) && IS_RESP(hsim, "PB ", bufLen, 3)) {
+      else if (!SIM_IS_STATUS(hsim, SIM_STAT_START) && SIM_IsResponse(hsim, "PB ", bufLen, 3)) {
         SIM_SET_STATUS(hsim, SIM_STAT_START);
       }
 
-      else if (IS_RESP(hsim, "+RECEIVE", bufLen, 8)) {
+      else if (SIM_IsResponse(hsim, "+RECEIVE", bufLen, 8)) {
         onSockReceive(hsim);
       }
 
-      else if (bufLen == 11 && IS_RESP(hsim, "+NETOPEN", bufLen, 8)) {
+      else if (bufLen == 11 && SIM_IsResponse(hsim, "+NETOPEN", bufLen, 8)) {
         onNetOpen(hsim);
       }
 
-      else if (IS_RESP(hsim, "+IPCLOSE", bufLen, 8)) {
+      else if (SIM_IsResponse(hsim, "+IPCLOSE", bufLen, 8)) {
         onSockClose(hsim);
       }
 
-      else if (IS_RESP(hsim, "+CIPEVENT", bufLen, 9)) {
+      else if (SIM_IsResponse(hsim, "+CIPEVENT", bufLen, 9)) {
         if (strncmp((const char *)&(hsim->buffer[11]), "NETWORK CLOSED", 14)) {
           SIM_UNSET_STATUS(hsim, SIM_STAT_NET_OPEN);
         }
@@ -128,10 +115,10 @@ void SIM_CheckAT(SIM_HandlerTypedef *hsim)
   SIM_LockCMD(hsim);
 
   // send command;
-  sendRequest(hsim, "AT", 2);
+  SIM_SendCMD(hsim, "AT", 2);
 
   // wait response
-  if (isOK(hsim)){
+  if (SIM_IsResponseOK(hsim)){
     SIM_SET_STATUS(hsim, SIM_STAT_CONNECT);
   } else {
     SIM_UNSET_STATUS(hsim, SIM_STAT_CONNECT);
@@ -147,8 +134,8 @@ SIM_Datetime SIM_GetTime(SIM_HandlerTypedef *hsim)
 
   SIM_LockCMD(hsim);
 
-  sendRequest(hsim, "AT+CCLK?", 8);
-  if(getResponse(hsim, "+CCLK", 5, resp, 22, GETRESP_WAIT_OK, 2000) == SIM_RESP_OK){
+  SIM_SendCMD(hsim, "AT+CCLK?", 8);
+  if(SIM_GetResponse(hsim, "+CCLK", 5, resp, 22, SIM_GETRESP_WAIT_OK, 2000) == SIM_RESP_OK){
     str2Time(&result, (char*)&resp[1]);
   }
   SIM_UnlockCMD(hsim);
@@ -176,115 +163,6 @@ void SIM_HashTime(SIM_HandlerTypedef *hsim, char *hashed)
 }
 
 
-void SIM_NetOpen(SIM_HandlerTypedef *hsim)
-{
-  uint8_t resp;
-
-  if(SIM_IS_STATUS(hsim, SIM_STAT_NET_OPENING)) return;
-
-  SIM_LockCMD(hsim);
-
-  // check net state
-  sendRequest(hsim, "AT+NETOPEN?", 11);
-  if (getResponse(hsim, "+NETOPEN", 8, &resp, 1, GETRESP_WAIT_OK, 1000) == SIM_RESP_OK) {
-    if (resp == '1') { // net already open;
-      SIM_SET_STATUS(hsim, SIM_STAT_NET_OPEN);
-
-      // TCP/IP Config
-      sendRequest(hsim, "AT+CIPCCFG=10,0,1,1,1,1,10000", 29);
-      if (isOK(hsim)) {
-      }
-    } else {
-      sendRequest(hsim, "AT+NETOPEN", 10);
-      SIM_Delay(1000);
-      if (isOK(hsim)){
-        SIM_SET_STATUS(hsim, SIM_STAT_NET_OPENING);
-      }
-    }
-  }
-
-  SIM_UnlockCMD(hsim);
-}
-
-
-/*
- * return linknum if connected
- * return -1 if not connected
- */
-int8_t SIM_SockOpenTCPIP(SIM_HandlerTypedef *hsim, const char *host, uint16_t port)
-{
-  int8_t linkNum = -1;
-  char cmd[128];
-  uint8_t resp[4];
-
-  if(!SIM_IS_STATUS(hsim, SIM_STAT_NET_OPEN))
-  {
-    return -1;
-  }
-  
-  for(int16_t i = 0; i < SIM_MAX_SOCKET; i++){
-    if(hsim->net.sockets[i] == NULL){
-      linkNum = i;
-      break;
-    }
-  }
-  if(linkNum == -1) return linkNum;
-
-  SIM_LockCMD(hsim);
-
-  sprintf(cmd, "AT+CIPOPEN=%d,\"TCP\",\"%s\",%d", linkNum, host, port);
-  sendRequest(hsim, cmd, strlen(cmd));
-
-  memset(resp, 0, 4);
-  if(getResponse(hsim, "+CIPOPEN", 8, resp, 3, GETRESP_WAIT_OK, 15000) == SIM_RESP_OK){
-    if(resp[3] != '0') linkNum = -1;
-  }
-
-  SIM_UnlockCMD(hsim);
-  return linkNum;
-}
-
-
-void SIM_SockClose(SIM_HandlerTypedef *hsim, uint8_t linkNum)
-{
-  SIM_LockCMD(hsim);
-  SIM_UnlockCMD(hsim);
-}
-
-
-void SIM_SockSendData(SIM_HandlerTypedef *hsim, int8_t linkNum, const uint8_t *data, uint16_t length)
-{
-  char cmd[20];
-  uint8_t resp;
-
-  SIM_LockCMD(hsim);
-
-  sprintf(cmd, "AT+CIPSEND=%d,%d\r", linkNum, length);
-  sendData(hsim, (uint8_t*)cmd, strlen(cmd));
-  waitResponse(hsim, "\r\n>", 3, 3000);
-
-  sendData(hsim, data, length);
-  SIM_Delay(5000);
-  if(getResponse(hsim, "+CIPSEND", 8, &resp, 1, GETRESP_WAIT_OK, 5000) == SIM_RESP_OK){
-  }
-
-  SIM_UnlockCMD(hsim);
-}
-
-
-void SIM_SockAddListener(SIM_HandlerTypedef *hsim, uint8_t linkNum, SIM_SockListener *listener)
-{
-  hsim->net.sockets[linkNum] = listener;
-}
-
-
-void SIM_SockRemoveListener(SIM_HandlerTypedef *hsim, uint8_t linkNum)
-{
-  hsim->net.sockets[linkNum] = NULL;
-}
-
-
-
 static void onNetOpen(SIM_HandlerTypedef *hsim)
 {
   if(!SIM_IS_STATUS(hsim, SIM_STAT_NET_OPENING)) return;
@@ -295,8 +173,8 @@ static void onNetOpen(SIM_HandlerTypedef *hsim)
     SIM_SET_STATUS(hsim, SIM_STAT_NET_OPEN);
 
     // TCP/IP Config
-    sendRequest(hsim, "AT+CIPCCFG=10,0,1,1,1,1,10000", 29);
-    if (isOK(hsim)){
+    SIM_SendCMD(hsim, "AT+CIPCCFG=10,0,1,1,1,1,10000", 29);
+    if (SIM_IsResponseOK(hsim)){
     }
   }
   else {
@@ -355,18 +233,6 @@ static void onSockClose(SIM_HandlerTypedef *hsim)
 }
 
 
-static void sendRequest(SIM_HandlerTypedef *hsim, const char *data, uint16_t size)
-{
-  STRM_Write(hsim->dmaStreamer, (uint8_t*)data, size, STRM_BREAK_CRLF);
-}
-
-
-static void sendData(SIM_HandlerTypedef *hsim, const uint8_t *data, uint16_t size)
-{
-  STRM_Write(hsim->dmaStreamer, (uint8_t*)data, size, STRM_BREAK_NONE);
-}
-
-
 static uint16_t getData(SIM_HandlerTypedef *hsim,
                         uint8_t *respData, uint16_t rdsize,
                         uint32_t timeout)
@@ -381,84 +247,6 @@ static uint16_t getData(SIM_HandlerTypedef *hsim,
     if(len == 0) SIM_Delay(1);
   }
   return len;
-}
-
-
-static uint8_t waitResponse(SIM_HandlerTypedef *hsim,
-                            const char *respCode, uint16_t rcsize,
-                            uint32_t timeout)
-{
-  uint16_t len = 0;
-
-  if(timeout == 0) timeout = hsim->timeout;
-
-  STRM_Read(hsim->dmaStreamer, hsim->buffer, rcsize, timeout);
-  if(len){
-    if(IS_RESP(hsim, respCode, len, rcsize)){
-      return 1;
-    }
-  }
-  return 0;
-}
-
-
-static uint8_t getResponse(SIM_HandlerTypedef *hsim,
-                        const char *respCode, uint16_t rcsize,
-                        uint8_t *respData, uint16_t rdsize,
-                        uint8_t getRespType,
-                        uint32_t timeout)
-{
-  uint16_t i;
-  uint8_t resp = SIM_RESP_TIMEOUT;
-  uint16_t bufLen = 0;
-  uint8_t flagToReadResp = 0;
-  uint32_t tickstart = SIM_GetTick();
-
-  if(timeout == 0) timeout = hsim->timeout;
-
-  // wait until available
-  while(1){
-    if((SIM_GetTick() - tickstart) >= timeout) break;
-    bufLen = SIM_checkResponse(hsim, timeout);
-    if(bufLen){
-      if(rcsize && strncmp((char *)hsim->buffer, respCode, rcsize) == 0){
-        if(flagToReadResp) continue;
-        // read response data
-        for(i = 2; i < bufLen && rdsize; i++){
-          // split string
-          if(!flagToReadResp && hsim->buffer[i-2] == ':' && hsim->buffer[i-1] == ' '){
-            flagToReadResp = 1;
-          }
-          if(flagToReadResp){
-            *respData = hsim->buffer[i];
-            respData++;
-            rdsize--;
-          }
-        }
-        if(getRespType == GETRESP_ONLY_DATA) break;
-        if(resp) break;
-      }
-      else if(IS_RESP(hsim, "OK", bufLen, 2)){
-        resp = SIM_RESP_OK;
-      }
-      else if(IS_RESP(hsim, "ERROR", bufLen, 5)){
-        resp = SIM_RESP_ERROR;
-      }
-
-      // break if will not get data
-      if(resp && !rcsize) break;
-      else if (resp && flagToReadResp) break;
-    }
-  }
-
-  return resp;
-}
-
-
-
-static uint8_t isOK(SIM_HandlerTypedef *hsim)
-{
-  return (getResponse(hsim, NULL, 0, NULL, 0, GETRESP_WAIT_OK, 0) == SIM_RESP_OK);
 }
 
 
