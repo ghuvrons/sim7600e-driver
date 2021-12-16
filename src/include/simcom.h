@@ -12,7 +12,6 @@
 #include "simcom/conf.h"
 #include <dma_streamer.h>
 
-#define SIM_BUFFER_SIZE 256
 
 /**
  * SIM STATUS
@@ -24,7 +23,7 @@
  */
 
 #define SIM_STATUS_START        0x01
-#define SIM_STATUS_CONNECT      0x02
+#define SIM_STATUS_ACTIVE       0x02
 #define SIM_STATUS_UART_READING 0x04
 #define SIM_STATUS_UART_WRITING 0x08
 #define SIM_STATUS_CMD_RUNNING  0x10
@@ -54,7 +53,7 @@ typedef struct {
   uint16_t            bufferLen;
   uint32_t            timeout;
 
-#ifdef SIM_EN_FEATURE_SOCKET
+#if SIM_EN_FEATURE_SOCKET
   struct {
     uint32_t          (*onOpened)(void);
     SIM_SockListener  *sockets[SIM_NUM_OF_SOCKET];
@@ -85,7 +84,7 @@ void          SIM_HashTime(SIM_HandlerTypeDef*, char *hashed);
 void          SIM_SendSms(SIM_HandlerTypeDef*);
 
 // MACROS
-#define SIM_IS_STATUS(hsim, stat)     (((hsim)->status & (stat)) != (stat))
+#define SIM_IS_STATUS(hsim, stat)     (((hsim)->status & (stat)) == (stat))
 #define SIM_SET_STATUS(hsim, stat)    {(hsim)->status |= (stat);}
 #define SIM_UNSET_STATUS(hsim, stat)  {(hsim)->status &= ~(stat);}
 

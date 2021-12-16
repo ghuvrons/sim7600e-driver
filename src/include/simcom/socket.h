@@ -5,7 +5,7 @@
  *      Author: janoko
  */
 
-#ifdef SIM_EN_FEATURE_SOCKET
+#if SIM_EN_FEATURE_SOCKET
 #ifndef SIM5320E_INC_SIMNET_H_
 #define SIM5320E_INC_SIMNET_H_
 

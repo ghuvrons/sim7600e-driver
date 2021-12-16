@@ -6,10 +6,10 @@
  */
 
 #include "stm32f4xx_hal.h"
-#include "Include/simcom.h"
-#include "Include/simcom/conf.h"
-#include "Include/simcom/utils.h"
-#include "Include/simcom/socket.h"
+#include "include/simcom.h"
+#include "include/simcom/conf.h"
+#include "include/simcom/utils.h"
+#include "include/simcom/socket.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -50,10 +50,16 @@ void SIM_Init(SIM_HandlerTypeDef *hsim, STRM_handlerTypeDef *dmaStreamer)
  */
 void SIM_CheckAsyncResponse(SIM_HandlerTypeDef *hsim, uint32_t timeout)
 {
+  uint32_t tickstart = SIM_GetTick();
+
   SIM_LockCMD(hsim);
-  hsim->bufferLen = STRM_Readline(hsim->dmaStreamer, hsim->buffer, SIM_BUFFER_SIZE, timeout);
-  if (hsim->bufferLen) {
-    SIM_HandleAsyncResponse(hsim);
+  while (STRM_IsReadable(hsim->dmaStreamer)) {
+    if((SIM_GetTick() - tickstart) >= timeout) break;
+
+    hsim->bufferLen = STRM_Readline(hsim->dmaStreamer, hsim->buffer, SIM_BUFFER_SIZE, timeout);
+    if (hsim->bufferLen) {
+      SIM_HandleAsyncResponse(hsim);
+    }
   }
   SIM_UnlockCMD(hsim);
 }
@@ -65,12 +71,13 @@ void SIM_CheckAsyncResponse(SIM_HandlerTypeDef *hsim, uint32_t timeout)
 void SIM_HandleAsyncResponse(SIM_HandlerTypeDef *hsim)
 {
   // check async response
-  if (SIM_IsResponse(hsim, "START", 5)) {
+  if (SIM_IsResponse(hsim, "RDY", 3)) {
     SIM_reset(hsim);
   }
 
   else if (!SIM_IS_STATUS(hsim, SIM_STATUS_START) && SIM_IsResponse(hsim, "PB ", 3)) {
     SIM_SET_STATUS(hsim, SIM_STATUS_START);
+    SIM_CheckAT(hsim);
   }
 
 #ifdef SIM_EN_FEATURE_SOCKET
@@ -89,9 +96,9 @@ void SIM_CheckAT(SIM_HandlerTypeDef *hsim)
 
   // wait response
   if (SIM_IsResponseOK(hsim)){
-    SIM_SET_STATUS(hsim, SIM_STATUS_CONNECT);
+    SIM_SET_STATUS(hsim, SIM_STATUS_ACTIVE);
   } else {
-    SIM_UNSET_STATUS(hsim, SIM_STATUS_CONNECT);
+    SIM_UNSET_STATUS(hsim, SIM_STATUS_ACTIVE);
   }
   SIM_UnlockCMD(hsim);
 }

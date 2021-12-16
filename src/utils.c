@@ -5,9 +5,9 @@
  *      Author: janoko
  */
 
-#include "Include/simcom.h"
-#include "Include/simcom/conf.h"
-#include "Include/simcom/utils.h"
+#include "include/simcom.h"
+#include "include/simcom/conf.h"
+#include "include/simcom/utils.h"
 #include <string.h>
 #include <dma_streamer.h>
 

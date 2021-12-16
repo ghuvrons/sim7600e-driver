@@ -7,15 +7,15 @@
 
 
 
-#include "../Include/simcom.h"
-#include "../Include/simcom/conf.h"
-#include "../Include/simcom/utils.h"
-#include "../Include/simcom/socket.h"
+#include "../include/simcom.h"
+#include "../include/simcom/conf.h"
+#include "../include/simcom/utils.h"
+#include "../include/simcom/socket.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
-#ifdef SIM_EN_FEATURE_SOCKET
+#if SIM_EN_FEATURE_SOCKET
 // event handlers
 static void onNetOpen(SIM_HandlerTypeDef*);
 static void onSockReceive(SIM_HandlerTypeDef*);
