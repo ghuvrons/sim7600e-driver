@@ -8,13 +8,19 @@
 #include "include/simcom.h"
 #include "include/simcom/conf.h"
 #include "include/simcom/utils.h"
+#include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 #include <dma_streamer.h>
 
 
-void SIM_SendCMD(SIM_HandlerTypeDef *hsim, const char *data, uint16_t size)
+void SIM_SendCMD(SIM_HandlerTypeDef *hsim, const char *format, ...)
 {
-  STRM_Write(hsim->dmaStreamer, (uint8_t*)data, size, STRM_BREAK_CRLF);
+  va_list arglist;
+  va_start( arglist, format );
+  hsim->cmdBufferLen = vsprintf(hsim->cmdBuffer, format, arglist);
+  va_end( arglist );
+  STRM_Write(hsim->dmaStreamer, (uint8_t*)hsim->cmdBuffer, hsim->cmdBufferLen, STRM_BREAK_CRLF);
 }
 
 
@@ -32,7 +38,7 @@ uint8_t SIM_WaitResponse( SIM_HandlerTypeDef *hsim,
 
   if (timeout == 0) timeout = hsim->timeout;
 
-  hsim->bufferLen = STRM_Read(hsim->dmaStreamer, hsim->buffer, rcsize, timeout);
+  hsim->respBufferLen = STRM_Read(hsim->dmaStreamer, hsim->respBuffer, rcsize, timeout);
   if (SIM_IsResponse(hsim, respCode, rcsize)) {
     return 1;
   }
@@ -40,14 +46,14 @@ uint8_t SIM_WaitResponse( SIM_HandlerTypeDef *hsim,
 }
 
 
-uint8_t SIM_GetResponse(SIM_HandlerTypeDef *hsim,
-                        const char *respCode, uint16_t rcsize,
-                        uint8_t *respData, uint16_t rdsize,
-                        uint8_t getRespType,
-                        uint32_t timeout)
+SIM_Status_t SIM_GetResponse( SIM_HandlerTypeDef *hsim,
+                              const char *respCode, uint16_t rcsize,
+                              uint8_t *respData, uint16_t rdsize,
+                              uint8_t getRespType,
+                              uint32_t timeout)
 {
   uint16_t i;
-  uint8_t resp = SIM_RESP_TIMEOUT;
+  uint8_t resp = SIM_TIMEOUT;
   uint8_t flagToReadResp = 0;
   uint32_t tickstart = SIM_GetTick();
 
@@ -57,32 +63,36 @@ uint8_t SIM_GetResponse(SIM_HandlerTypeDef *hsim,
   while(1) {
     if((SIM_GetTick() - tickstart) >= timeout) break;
 
-    hsim->bufferLen = STRM_Readline(hsim->dmaStreamer, hsim->buffer, SIM_BUFFER_SIZE, timeout);
-    if (hsim->bufferLen) {
-      if (rcsize && strncmp((char *)hsim->buffer, respCode, (int) rcsize) == 0) {
+    hsim->respBufferLen = STRM_Readline(hsim->dmaStreamer, hsim->respBuffer, SIM_RESP_BUFFER_SIZE, timeout);
+    if (hsim->respBufferLen) {
+      if (rcsize && strncmp((char *)hsim->respBuffer, respCode, (int) rcsize) == 0) {
         if (flagToReadResp) continue;
 
         // read response data
-        for (i = 2; i < hsim->bufferLen && rdsize; i++) {
+        for (i = 2; i < hsim->respBufferLen && rdsize; i++) {
           // split string
-          if (!flagToReadResp && hsim->buffer[i-2] == ':' && hsim->buffer[i-1] == ' ') {
+          if (!flagToReadResp && hsim->respBuffer[i-2] == ':' && hsim->respBuffer[i-1] == ' ') {
             flagToReadResp = 1;
           }
 
           if (flagToReadResp) {
-            *respData = hsim->buffer[i];
+            *respData = hsim->respBuffer[i];
             respData++;
             rdsize--;
           }
         }
+        if (rdsize) *respData = 0;
         if (getRespType == SIM_GETRESP_ONLY_DATA) break;
-        if (resp) break;
+        if (resp != SIM_TIMEOUT) break;
       }
       else if (SIM_IsResponse(hsim, "OK", 2)) {
-        resp = SIM_RESP_OK;
+        resp = SIM_OK;
       }
       else if (SIM_IsResponse(hsim, "ERROR", 5)) {
-        resp = SIM_RESP_ERROR;
+        resp = SIM_ERROR;
+      }
+      else if (SIM_IsResponse(hsim, "+CME ERROR", 10)) {
+        resp = SIM_ERROR;
       }
 
       // check is got async response
@@ -91,8 +101,10 @@ uint8_t SIM_GetResponse(SIM_HandlerTypeDef *hsim,
       }
 
       // break if will not get data
-      if (resp && !rcsize) break;
-      else if (resp && flagToReadResp) break;
+      if (resp != SIM_TIMEOUT) {
+        if (!rcsize) break;
+        else if (flagToReadResp) break;
+      }
     }
   }
 
@@ -136,7 +148,7 @@ const uint8_t * SIM_ParseStr(const uint8_t *separator, uint8_t delimiter, int id
       else          isInStr = 1;
     }
 
-    else if (idx == 0) {
+    else if (idx == 0 && output != 0) {
       *output = *separator;
       output++;
     }

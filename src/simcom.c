@@ -25,15 +25,15 @@ static void str2Time(SIM_Datetime*, const char*);
 
 __weak void SIM_LockCMD(SIM_HandlerTypeDef *hsim)
 {
-  while(SIM_IS_STATUS(hsim, SIM_STATUS_CMD_RUNNING)){
+  while(SIM_IS_STATE(hsim, SIM_STATE_CMD_RUNNING)){
     SIM_Delay(1);
   }
-  SIM_SET_STATUS(hsim, SIM_STATUS_CMD_RUNNING);
+  SIM_SET_STATE(hsim, SIM_STATE_CMD_RUNNING);
 }
 
 __weak void SIM_UnlockCMD(SIM_HandlerTypeDef *hsim)
 {
-  SIM_UNSET_STATUS(hsim, SIM_STATUS_CMD_RUNNING);
+  SIM_UNSET_STATE(hsim, SIM_STATE_CMD_RUNNING);
 }
 
 
@@ -52,16 +52,21 @@ void SIM_CheckAsyncResponse(SIM_HandlerTypeDef *hsim, uint32_t timeout)
 {
   uint32_t tickstart = SIM_GetTick();
 
-  SIM_LockCMD(hsim);
   while (STRM_IsReadable(hsim->dmaStreamer)) {
     if((SIM_GetTick() - tickstart) >= timeout) break;
 
-    hsim->bufferLen = STRM_Readline(hsim->dmaStreamer, hsim->buffer, SIM_BUFFER_SIZE, timeout);
-    if (hsim->bufferLen) {
+    hsim->respBufferLen = STRM_Readline(hsim->dmaStreamer, hsim->respBuffer, SIM_RESP_BUFFER_SIZE, timeout);
+    if (hsim->respBufferLen) {
       SIM_HandleAsyncResponse(hsim);
     }
   }
-  SIM_UnlockCMD(hsim);
+
+  if (SIM_IS_STATE(hsim, SIM_STATE_START) && !SIM_IS_STATE(hsim, SIM_STATE_ACTIVE)){
+    SIM_CheckAT(hsim);
+  }
+  if (SIM_IS_STATE(hsim, SIM_STATE_ACTIVE) && !SIM_IS_STATE(hsim, SIM_STATE_REGISTERED)){
+    SIM_ReqisterNetwork(hsim);
+  }
 }
 
 
@@ -75,9 +80,8 @@ void SIM_HandleAsyncResponse(SIM_HandlerTypeDef *hsim)
     SIM_reset(hsim);
   }
 
-  else if (!SIM_IS_STATUS(hsim, SIM_STATUS_START) && SIM_IsResponse(hsim, "PB ", 3)) {
-    SIM_SET_STATUS(hsim, SIM_STATUS_START);
-    SIM_CheckAT(hsim);
+  else if (!SIM_IS_STATE(hsim, SIM_STATE_START) && SIM_IsResponse(hsim, "PB ", 3)) {
+    SIM_SET_STATE(hsim, SIM_STATE_START);
   }
 
 #ifdef SIM_EN_FEATURE_SOCKET
@@ -89,17 +93,84 @@ void SIM_HandleAsyncResponse(SIM_HandlerTypeDef *hsim)
 
 void SIM_CheckAT(SIM_HandlerTypeDef *hsim)
 {
-  SIM_LockCMD(hsim);
-
   // send command;
-  SIM_SendCMD(hsim, "AT", 2);
+  SIM_LockCMD(hsim);
+  SIM_SendCMD(hsim, "AT");
 
   // wait response
   if (SIM_IsResponseOK(hsim)){
-    SIM_SET_STATUS(hsim, SIM_STATUS_ACTIVE);
+    SIM_SET_STATE(hsim, SIM_STATE_ACTIVE);
   } else {
-    SIM_UNSET_STATUS(hsim, SIM_STATUS_ACTIVE);
+    SIM_UNSET_STATE(hsim, SIM_STATE_ACTIVE);
   }
+  SIM_UnlockCMD(hsim);
+}
+
+
+uint8_t SIM_CheckSignal(SIM_HandlerTypeDef *hsim)
+{
+  uint8_t signal = 0;
+  uint8_t resp[16];
+  char signalStr[3];
+
+  if (!SIM_IS_STATE(hsim, SIM_STATE_ACTIVE)) return signal;
+
+  // send command then get response;
+  SIM_LockCMD(hsim);
+  SIM_SendCMD(hsim, "AT+CSQ");
+
+  // do with response
+  if (SIM_GetResponse(hsim, "+CSQ", 4, &resp[0], 16, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
+    SIM_ParseStr(&resp[0], ',', 1, (uint8_t*) &signalStr[0]);
+    signal = (uint8_t) atoi((char*)&resp[0]);
+    printf("signal : %d\r\n", (int) signal);
+  }
+  SIM_UnlockCMD(hsim);
+
+  if (signal == 99) {
+    signal = 0;
+    SIM_ReqisterNetwork(hsim);
+  }
+  hsim->signal = signal;
+
+  return signal;
+}
+
+
+void SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
+{
+  uint8_t resp[16];
+  // uint8_t resp_n = 0;
+  uint8_t resp_stat = 0;
+
+  // send command then get response;
+  SIM_LockCMD(hsim);
+  SIM_SendCMD(hsim, "AT+CREG?");
+  if (SIM_GetResponse(hsim, "+CREG", 5, &resp[0], 16, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
+    // resp_n = (uint8_t) atoi((char*)&resp[0]);
+    resp_stat = (uint8_t) atoi((char*)&resp[2]);
+  }
+  else goto endcmd;
+
+  // check response
+  if (resp_stat == 1) {
+    SIM_SET_STATE(hsim, SIM_STATE_REGISTERED);
+  }
+  else {
+    SIM_UNSET_STATE(hsim, SIM_STATE_REGISTERED);
+
+    if (resp_stat == 0) {
+      // write creg
+      SIM_SendCMD(hsim, "AT+CREG=1");
+      if (!SIM_IsResponseOK(hsim)) goto endcmd;
+
+      // execute creg
+      SIM_SendCMD(hsim, "AT+CREG");
+      if (!SIM_IsResponseOK(hsim)) goto endcmd;
+    }
+  }
+
+  endcmd:
   SIM_UnlockCMD(hsim);
 }
 
@@ -109,10 +180,10 @@ SIM_Datetime SIM_GetTime(SIM_HandlerTypeDef *hsim)
   SIM_Datetime result;
   uint8_t resp[22];
 
+  // send command then get response;
   SIM_LockCMD(hsim);
-
-  SIM_SendCMD(hsim, "AT+CCLK?", 8);
-  if (SIM_GetResponse(hsim, "+CCLK", 5, resp, 22, SIM_GETRESP_WAIT_OK, 2000) == SIM_RESP_OK) {
+  SIM_SendCMD(hsim, "AT+CCLK?");
+  if (SIM_GetResponse(hsim, "+CCLK", 5, resp, 22, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
     str2Time(&result, (char*)&resp[1]);
   }
   SIM_UnlockCMD(hsim);
@@ -140,9 +211,25 @@ void SIM_HashTime(SIM_HandlerTypeDef *hsim, char *hashed)
 }
 
 
+void SIM_SendUSSD(SIM_HandlerTypeDef *hsim, const char *ussd)
+{
+  if (!SIM_IS_STATE(hsim, SIM_STATE_REGISTERED)) return;
+
+  SIM_LockCMD(hsim);
+  SIM_SendCMD(hsim, "AT+CSCS=\"GSM\"");
+  if (!SIM_IsResponseOK(hsim)){
+    goto endcmd;
+  }
+
+  SIM_SendCMD(hsim, "AT+CUSD=1,%s,15", ussd);
+
+  endcmd:
+  SIM_UnlockCMD(hsim);
+}
+
+
 static void SIM_reset(SIM_HandlerTypeDef *hsim)
 {
-
 #ifdef SIM_EN_FEATURE_SOCKET
   for (uint8_t i = 0; i < SIM_NUM_OF_SOCKET; i++) {
     if (hsim->net.sockets[i] != NULL) {
@@ -153,7 +240,7 @@ static void SIM_reset(SIM_HandlerTypeDef *hsim)
   }
 #endif
 
-  hsim->status = 0;
+  hsim->state = 0;
 }
 
 static void str2Time(SIM_Datetime *dt, const char *str)

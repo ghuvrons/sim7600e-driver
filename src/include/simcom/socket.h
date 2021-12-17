@@ -16,11 +16,11 @@
 #define SIM_SOCK_UDP    0
 #define SIM_SOCK_TCPIP  1
 
-#define SIM_SOCK_STATUS_OPEN  0x01
+#define SIM_SOCK_STATE_OPEN  0x01
 
-#define SIM_SOCK_IS_STATUS(sock, stat)    SIM_IS_STATUS(sock, stat)
-#define SIM_SOCK_SET_STATUS(sock, stat)   SIM_SET_STATUS(sock, stat)
-#define SIM_SOCK_UNSET_STATUS(sock, stat) SIM_UNSET_STATUS(sock, stat)
+#define SIM_SOCK_IS_STATE(sock, stat)    SIM_IS_STATE(sock, stat)
+#define SIM_SOCK_SET_STATE(sock, stat)   SIM_SET_STATE(sock, stat)
+#define SIM_SOCK_UNSET_STATE(sock, stat) SIM_UNSET_STATE(sock, stat)
 
 #define SIM_SOCK_SUCCESS 0
 #define SIM_SOCK_ERROR   1
@@ -28,7 +28,7 @@
 
 typedef struct {
   SIM_HandlerTypeDef  *hsim;
-  uint8_t             status;
+  uint8_t             state;
   uint8_t             linkNum;
   uint8_t             type;                 // SIM_SOCK_UDP or SIM_SOCK_TCPIP
   uint32_t            timeout;

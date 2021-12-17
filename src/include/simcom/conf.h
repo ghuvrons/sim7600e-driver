@@ -24,8 +24,13 @@
 #define SIM_NUM_OF_SOCKET  4
 #endif
 
-#ifndef SIM_BUFFER_SIZE
-#define SIM_BUFFER_SIZE  256
+
+#ifndef SIM_CMD_BUFFER_SIZE
+#define SIM_CMD_BUFFER_SIZE  256
+#endif
+
+#ifndef SIM_RESP_BUFFER_SIZE
+#define SIM_RESP_BUFFER_SIZE  256
 #endif
 
 #endif /* SIM5320E_SRC_INCLUDE_SIMCOM_CONF_H_ */
