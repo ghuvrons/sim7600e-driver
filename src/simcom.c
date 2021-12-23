@@ -25,20 +25,21 @@ static void str2Time(SIM_Datetime*, const char*);
 
 __weak void SIM_LockCMD(SIM_HandlerTypeDef *hsim)
 {
-  while(SIM_IS_STATE(hsim, SIM_STATE_CMD_RUNNING)){
+  while(SIM_IS_STATUS(hsim, SIM_STATUS_CMD_RUNNING)){
     SIM_Delay(1);
   }
-  SIM_SET_STATE(hsim, SIM_STATE_CMD_RUNNING);
+  SIM_SET_STATUS(hsim, SIM_STATUS_CMD_RUNNING);
 }
 
 __weak void SIM_UnlockCMD(SIM_HandlerTypeDef *hsim)
 {
-  SIM_UNSET_STATE(hsim, SIM_STATE_CMD_RUNNING);
+  SIM_UNSET_STATUS(hsim, SIM_STATUS_CMD_RUNNING);
 }
 
 
 void SIM_Init(SIM_HandlerTypeDef *hsim, STRM_handlerTypeDef *dmaStreamer)
 {
+  dmaStreamer->config.breakLine = STRM_BREAK_CRLF;
   hsim->dmaStreamer = dmaStreamer;
   hsim->timeout = 2000;
   return;
@@ -50,8 +51,9 @@ void SIM_Init(SIM_HandlerTypeDef *hsim, STRM_handlerTypeDef *dmaStreamer)
  */
 void SIM_CheckAsyncResponse(SIM_HandlerTypeDef *hsim, uint32_t timeout)
 {
+  // Read incoming Response
   uint32_t tickstart = SIM_GetTick();
-
+  SIM_LockCMD(hsim);
   while (STRM_IsReadable(hsim->dmaStreamer)) {
     if((SIM_GetTick() - tickstart) >= timeout) break;
 
@@ -60,13 +62,20 @@ void SIM_CheckAsyncResponse(SIM_HandlerTypeDef *hsim, uint32_t timeout)
       SIM_HandleAsyncResponse(hsim);
     }
   }
+  SIM_UnlockCMD(hsim);
 
-  if (SIM_IS_STATE(hsim, SIM_STATE_START) && !SIM_IS_STATE(hsim, SIM_STATE_ACTIVE)){
+  // Event Handler
+  if (SIM_IS_STATUS(hsim, SIM_STATUS_START) && !SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE)){
+    SIM_Echo(hsim, 0);
     SIM_CheckAT(hsim);
   }
-  if (SIM_IS_STATE(hsim, SIM_STATE_ACTIVE) && !SIM_IS_STATE(hsim, SIM_STATE_REGISTERED)){
+  if (SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE) && !SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED)){
     SIM_ReqisterNetwork(hsim);
   }
+
+#ifdef SIM_EN_FEATURE_SOCKET
+  SIM_NetEventsHandler(hsim);
+#endif
 }
 
 
@@ -80,14 +89,27 @@ void SIM_HandleAsyncResponse(SIM_HandlerTypeDef *hsim)
     SIM_reset(hsim);
   }
 
-  else if (!SIM_IS_STATE(hsim, SIM_STATE_START) && SIM_IsResponse(hsim, "PB ", 3)) {
-    SIM_SET_STATE(hsim, SIM_STATE_START);
+  else if (!SIM_IS_STATUS(hsim, SIM_STATUS_START) && SIM_IsResponse(hsim, "PB ", 3)) {
+    SIM_SET_STATUS(hsim, SIM_STATUS_START);
   }
 
 #ifdef SIM_EN_FEATURE_SOCKET
   else if (SIM_NetCheckAsyncResponse(hsim)) return;
 #endif
 
+}
+
+
+void SIM_Echo(SIM_HandlerTypeDef *hsim, uint8_t onoff)
+{
+  SIM_LockCMD(hsim);
+  if (onoff)
+    SIM_SendCMD(hsim, "ATE1");
+  else
+    SIM_SendCMD(hsim, "ATE0");
+  // wait response
+  if (SIM_IsResponseOK(hsim)) {}
+  SIM_UnlockCMD(hsim);
 }
 
 
@@ -99,9 +121,9 @@ void SIM_CheckAT(SIM_HandlerTypeDef *hsim)
 
   // wait response
   if (SIM_IsResponseOK(hsim)){
-    SIM_SET_STATE(hsim, SIM_STATE_ACTIVE);
+    SIM_SET_STATUS(hsim, SIM_STATUS_ACTIVE);
   } else {
-    SIM_UNSET_STATE(hsim, SIM_STATE_ACTIVE);
+    SIM_UNSET_STATUS(hsim, SIM_STATUS_ACTIVE);
   }
   SIM_UnlockCMD(hsim);
 }
@@ -113,7 +135,7 @@ uint8_t SIM_CheckSignal(SIM_HandlerTypeDef *hsim)
   uint8_t resp[16];
   char signalStr[3];
 
-  if (!SIM_IS_STATE(hsim, SIM_STATE_ACTIVE)) return signal;
+  if (!SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE)) return signal;
 
   // send command then get response;
   SIM_LockCMD(hsim);
@@ -154,10 +176,10 @@ void SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
 
   // check response
   if (resp_stat == 1) {
-    SIM_SET_STATE(hsim, SIM_STATE_REGISTERED);
+    SIM_SET_STATUS(hsim, SIM_STATUS_REGISTERED);
   }
   else {
-    SIM_UNSET_STATE(hsim, SIM_STATE_REGISTERED);
+    SIM_UNSET_STATUS(hsim, SIM_STATUS_REGISTERED);
 
     if (resp_stat == 0) {
       // write creg
@@ -213,7 +235,7 @@ void SIM_HashTime(SIM_HandlerTypeDef *hsim, char *hashed)
 
 void SIM_SendUSSD(SIM_HandlerTypeDef *hsim, const char *ussd)
 {
-  if (!SIM_IS_STATE(hsim, SIM_STATE_REGISTERED)) return;
+  if (!SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED)) return;
 
   SIM_LockCMD(hsim);
   SIM_SendCMD(hsim, "AT+CSCS=\"GSM\"");
@@ -230,17 +252,7 @@ void SIM_SendUSSD(SIM_HandlerTypeDef *hsim, const char *ussd)
 
 static void SIM_reset(SIM_HandlerTypeDef *hsim)
 {
-#ifdef SIM_EN_FEATURE_SOCKET
-  for (uint8_t i = 0; i < SIM_NUM_OF_SOCKET; i++) {
-    if (hsim->net.sockets[i] != NULL) {
-      if (hsim->net.sockets[i]->onClosed != NULL) 
-        hsim->net.sockets[i]->onClosed();
-      hsim->net.sockets[i] = NULL;
-    }
-  }
-#endif
-
-  hsim->state = 0;
+  hsim->status = 0;
 }
 
 static void str2Time(SIM_Datetime *dt, const char *str)

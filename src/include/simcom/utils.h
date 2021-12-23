@@ -20,8 +20,6 @@ SIM_Status_t  SIM_GetResponse(SIM_HandlerTypeDef*, const char *respCode, uint16_
 uint16_t      SIM_GetData(SIM_HandlerTypeDef*, uint8_t *respData, uint16_t rdsize, uint32_t timeout);
 const uint8_t *SIM_ParseStr(const uint8_t *separator, uint8_t delimiter, int idx, uint8_t *output);
 
-
-
 // MACROS
 #define SIM_IsResponse(hsim, resp, min_len) \
   ((hsim)->respBufferLen >= (min_len) \
@@ -29,5 +27,4 @@ const uint8_t *SIM_ParseStr(const uint8_t *separator, uint8_t delimiter, int idx
 
 #define SIM_IsResponseOK(hsim) \
   (SIM_GetResponse((hsim), NULL, 0, NULL, 0, SIM_GETRESP_WAIT_OK, 0) == SIM_OK)
-
 #endif /* SIM5320E_SRC_INCLUDE_SIMCOM_UTILS_H_ */

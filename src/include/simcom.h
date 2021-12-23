@@ -22,17 +22,19 @@
  *      4   is net opened
  */
 
-#define SIM_STATE_START        0x01
-#define SIM_STATE_ACTIVE       0x02
-#define SIM_STATE_REGISTERED   0x04
-#define SIM_STATE_UART_READING 0x08
-#define SIM_STATE_UART_WRITING 0x10
-#define SIM_STATE_CMD_RUNNING  0x20
-#define SIM_STATE_NET_OPEN     0x40
-#define SIM_STATE_NET_OPENING  0x80
+#define SIM_STATUS_START        0x01
+#define SIM_STATUS_ACTIVE       0x02
+#define SIM_STATUS_REGISTERED   0x04
+#define SIM_STATUS_UART_READING 0x08
+#define SIM_STATUS_UART_WRITING 0x10
+#define SIM_STATUS_CMD_RUNNING  0x20
+#define SIM_STATUS_NET_OPEN     0x40
+#define SIM_STATUS_NET_OPENING  0x80
 
 #define SIM_GETRESP_WAIT_OK   0
 #define SIM_GETRESP_ONLY_DATA 1
+
+#define SIM_EVENT_ON_NET_OPENED 0x10
 
 typedef uint8_t (*asyncResponseHandler) (uint16_t bufLen);
 typedef enum {
@@ -42,14 +44,8 @@ typedef enum {
 } SIM_Status_t;
 
 typedef struct {
-  void      (*onReceived)(uint16_t);
-  uint16_t  (*onClosed)(void);
-  uint16_t  bufferSize;
-  uint8_t   *buffer;
-} SIM_SockListener;
-
-typedef struct {
-  uint8_t             state;
+  uint8_t             status;
+  uint8_t             events;
   uint8_t             signal;
   uint32_t            timeout;
   STRM_handlerTypeDef *dmaStreamer;
@@ -57,7 +53,7 @@ typedef struct {
 #if SIM_EN_FEATURE_SOCKET
   struct {
     uint32_t          (*onOpened)(void);
-    SIM_SockListener  *sockets[SIM_NUM_OF_SOCKET];
+    void              *sockets[SIM_NUM_OF_SOCKET];
   } net;
 #endif
 
@@ -85,6 +81,7 @@ void SIM_UnlockCMD(SIM_HandlerTypeDef*);
 void          SIM_Init(SIM_HandlerTypeDef*, STRM_handlerTypeDef*);
 void          SIM_CheckAsyncResponse(SIM_HandlerTypeDef*, uint32_t timeout);
 void          SIM_HandleAsyncResponse(SIM_HandlerTypeDef*);
+void          SIM_Echo(SIM_HandlerTypeDef*, uint8_t onoff);
 void          SIM_CheckAT(SIM_HandlerTypeDef*);
 uint8_t       SIM_CheckSignal(SIM_HandlerTypeDef*);
 void          SIM_ReqisterNetwork(SIM_HandlerTypeDef*);
@@ -94,8 +91,12 @@ void          SIM_SendSms(SIM_HandlerTypeDef*);
 void          SIM_SendUSSD(SIM_HandlerTypeDef*, const char *ussd);
 
 // MACROS
-#define SIM_IS_STATE(hsim, stat)     (((hsim)->state & (stat)) == (stat))
-#define SIM_SET_STATE(hsim, stat)    {(hsim)->state |= (stat);}
-#define SIM_UNSET_STATE(hsim, stat)  {(hsim)->state &= ~(stat);}
+#define SIM_BITS_IS(bits, bit)     (((bits) & (bit)) == (bit))
+#define SIM_BITS_SET(bits, bit)    {(bits) |= (bit);}
+#define SIM_BITS_UNSET(bits, bit)  {(bits) &= ~(bit);}
+
+#define SIM_IS_STATUS(hsim, stat)     SIM_BITS_IS((hsim)->status, stat)
+#define SIM_SET_STATUS(hsim, stat)    SIM_BITS_SET((hsim)->status, stat)
+#define SIM_UNSET_STATUS(hsim, stat)  SIM_BITS_UNSET((hsim)->status, stat)
 
 #endif /* SIM5300E_INC_SIMCOM_H_ */

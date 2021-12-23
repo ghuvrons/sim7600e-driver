@@ -35,7 +35,6 @@ uint8_t SIM_WaitResponse( SIM_HandlerTypeDef *hsim,
                           const char *respCode, uint16_t rcsize,
                           uint32_t timeout)
 {
-
   if (timeout == 0) timeout = hsim->timeout;
 
   hsim->respBufferLen = STRM_Read(hsim->dmaStreamer, hsim->respBuffer, rcsize, timeout);
@@ -111,19 +110,10 @@ SIM_Status_t SIM_GetResponse( SIM_HandlerTypeDef *hsim,
   return resp;
 }
 
+
 uint16_t SIM_GetData(SIM_HandlerTypeDef *hsim, uint8_t *respData, uint16_t rdsize, uint32_t timeout)
 {
-  uint16_t len = 0;
-  uint32_t tickstart = SIM_GetTick();
-
-  if (timeout == 0) timeout = hsim->timeout;
-  while (len < rdsize) {
-    if ((SIM_GetTick() - tickstart) >= timeout) break;
-
-    len += STRM_ReadBuffer(hsim->dmaStreamer, respData, rdsize, STRM_BREAK_NONE);
-    if (len == 0) SIM_Delay(1);
-  }
-  return len;
+  return STRM_Read(hsim->dmaStreamer, respData, rdsize, timeout);
 }
 
 
