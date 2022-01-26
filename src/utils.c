@@ -96,7 +96,7 @@ SIM_Status_t SIM_GetResponse( SIM_HandlerTypeDef *hsim,
 
       // check is got async response
       else {
-        SIM_HandleAsyncResponse(hsim);
+        SIM_CheckAsyncResponse(hsim);
       }
 
       // break if will not get data

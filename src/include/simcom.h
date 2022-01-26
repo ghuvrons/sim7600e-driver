@@ -34,7 +34,11 @@
 #define SIM_GETRESP_WAIT_OK   0
 #define SIM_GETRESP_ONLY_DATA 1
 
-#define SIM_EVENT_ON_NET_OPENED 0x10
+#define SIM_EVENT_ON_STARTING   0x01
+#define SIM_EVENT_ON_STARTED    0x02
+#define SIM_EVENT_ON_NET_RESET  0x10
+#define SIM_EVENT_ON_NET_OPENED 0x20
+#define SIM_EVENT_ON_NET_CLOSED 0x40
 
 typedef uint8_t (*asyncResponseHandler) (uint16_t bufLen);
 typedef enum {
@@ -52,17 +56,20 @@ typedef struct {
 
 #if SIM_EN_FEATURE_SOCKET
   struct {
-    uint32_t          (*onOpened)(void);
-    void              *sockets[SIM_NUM_OF_SOCKET];
+    void (*onOpening)(void);
+    void (*onOpened)(void);
+    void (*onOpenError)(void);
+    void (*onClosed)(void);
+    void *sockets[SIM_NUM_OF_SOCKET];
   } net;
 #endif
 
   // Buffers
-  uint8_t             respBuffer[SIM_RESP_BUFFER_SIZE];
-  uint16_t            respBufferLen;
+  uint8_t  respBuffer[SIM_RESP_BUFFER_SIZE];
+  uint16_t respBufferLen;
 
-  char                cmdBuffer[SIM_CMD_BUFFER_SIZE];
-  uint16_t            cmdBufferLen;
+  char     cmdBuffer[SIM_CMD_BUFFER_SIZE];
+  uint16_t cmdBufferLen;
 } SIM_HandlerTypeDef;
 
 typedef struct {
@@ -79,8 +86,9 @@ void SIM_LockCMD(SIM_HandlerTypeDef*);
 void SIM_UnlockCMD(SIM_HandlerTypeDef*);
 
 void          SIM_Init(SIM_HandlerTypeDef*, STRM_handlerTypeDef*);
-void          SIM_CheckAsyncResponse(SIM_HandlerTypeDef*, uint32_t timeout);
-void          SIM_HandleAsyncResponse(SIM_HandlerTypeDef*);
+void          SIM_CheckAnyResponse(SIM_HandlerTypeDef*, uint32_t timeout);
+void          SIM_CheckAsyncResponse(SIM_HandlerTypeDef*);
+void          SIM_HandleEvents(SIM_HandlerTypeDef*);
 void          SIM_Echo(SIM_HandlerTypeDef*, uint8_t onoff);
 void          SIM_CheckAT(SIM_HandlerTypeDef*);
 uint8_t       SIM_CheckSignal(SIM_HandlerTypeDef*);
@@ -91,11 +99,13 @@ void          SIM_SendSms(SIM_HandlerTypeDef*);
 void          SIM_SendUSSD(SIM_HandlerTypeDef*, const char *ussd);
 
 // MACROS
-#define SIM_BITS_IS(bits, bit)     (((bits) & (bit)) == (bit))
+#define SIM_BITS_IS_ALL(bits, bit) (((bits) & (bit)) == (bit))
+#define SIM_BITS_IS_ANY(bits, bit) ((bits) & (bit))
+#define SIM_BITS_IS(bits, bit)     SIM_BITS_IS_ALL(bits, bit)
 #define SIM_BITS_SET(bits, bit)    {(bits) |= (bit);}
 #define SIM_BITS_UNSET(bits, bit)  {(bits) &= ~(bit);}
 
-#define SIM_IS_STATUS(hsim, stat)     SIM_BITS_IS((hsim)->status, stat)
+#define SIM_IS_STATUS(hsim, stat)     SIM_BITS_IS_ALL((hsim)->status, stat)
 #define SIM_SET_STATUS(hsim, stat)    SIM_BITS_SET((hsim)->status, stat)
 #define SIM_UNSET_STATUS(hsim, stat)  SIM_BITS_UNSET((hsim)->status, stat)
 

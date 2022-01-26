@@ -49,7 +49,7 @@ void SIM_Init(SIM_HandlerTypeDef *hsim, STRM_handlerTypeDef *dmaStreamer)
 /*
  * Read response per lines at a certain time interval
  */
-void SIM_CheckAsyncResponse(SIM_HandlerTypeDef *hsim, uint32_t timeout)
+void SIM_CheckAnyResponse(SIM_HandlerTypeDef *hsim, uint32_t timeout)
 {
   // Read incoming Response
   uint32_t tickstart = SIM_GetTick();
@@ -59,12 +59,46 @@ void SIM_CheckAsyncResponse(SIM_HandlerTypeDef *hsim, uint32_t timeout)
 
     hsim->respBufferLen = STRM_Readline(hsim->dmaStreamer, hsim->respBuffer, SIM_RESP_BUFFER_SIZE, timeout);
     if (hsim->respBufferLen) {
-      SIM_HandleAsyncResponse(hsim);
+      SIM_CheckAsyncResponse(hsim);
     }
   }
   SIM_UnlockCMD(hsim);
 
   // Event Handler
+  SIM_HandleEvents(hsim);
+}
+
+
+void SIM_CheckAsyncResponse(SIM_HandlerTypeDef *hsim)
+{
+  if (SIM_IsResponse(hsim, "RDY", 3)) {
+    SIM_BITS_SET(hsim->events, SIM_EVENT_ON_STARTING);
+  }
+
+  else if (!SIM_IS_STATUS(hsim, SIM_STATUS_START) && SIM_IsResponse(hsim, "PB ", 3)) {
+    SIM_SET_STATUS(hsim, SIM_STATUS_START);
+    SIM_BITS_SET(hsim->events, SIM_EVENT_ON_STARTED);
+  }
+
+#ifdef SIM_EN_FEATURE_SOCKET
+  else if (SIM_NetCheckAsyncResponse(hsim)) return;
+#endif
+}
+
+
+/*
+ * Handle async response
+ */
+void SIM_HandleEvents(SIM_HandlerTypeDef *hsim)
+{
+  // check async response
+  if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTING)) {
+    SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_STARTING);
+    SIM_reset(hsim);
+  }
+  if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTED)) {
+    SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_STARTED);
+  }
   if (SIM_IS_STATUS(hsim, SIM_STATUS_START) && !SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE)){
     SIM_Echo(hsim, 0);
     SIM_CheckAT(hsim);
@@ -74,29 +108,8 @@ void SIM_CheckAsyncResponse(SIM_HandlerTypeDef *hsim, uint32_t timeout)
   }
 
 #ifdef SIM_EN_FEATURE_SOCKET
-  SIM_NetEventsHandler(hsim);
+  SIM_NetHandleEvents(hsim);
 #endif
-}
-
-
-/*
- * Handle async response
- */
-void SIM_HandleAsyncResponse(SIM_HandlerTypeDef *hsim)
-{
-  // check async response
-  if (SIM_IsResponse(hsim, "RDY", 3)) {
-    SIM_reset(hsim);
-  }
-
-  else if (!SIM_IS_STATUS(hsim, SIM_STATUS_START) && SIM_IsResponse(hsim, "PB ", 3)) {
-    SIM_SET_STATUS(hsim, SIM_STATUS_START);
-  }
-
-#ifdef SIM_EN_FEATURE_SOCKET
-  else if (SIM_NetCheckAsyncResponse(hsim)) return;
-#endif
-
 }
 
 
@@ -252,6 +265,10 @@ void SIM_SendUSSD(SIM_HandlerTypeDef *hsim, const char *ussd)
 
 static void SIM_reset(SIM_HandlerTypeDef *hsim)
 {
+#ifdef SIM_EN_FEATURE_SOCKET
+  SIM_BITS_SET(hsim->events, SIM_EVENT_ON_NET_RESET);
+#endif
+
   hsim->status = 0;
 }
 

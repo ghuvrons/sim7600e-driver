@@ -5,9 +5,11 @@
  *      Author: janoko
  */
 
-#if SIM_EN_FEATURE_SOCKET
 #ifndef SIM5320E_INC_SIMNET_H_
 #define SIM5320E_INC_SIMNET_H_
+
+#include "conf.h"
+#if SIM_EN_FEATURE_SOCKET
 
 #include "../simcom.h"
 
@@ -29,7 +31,7 @@
 #define SIM_SOCK_EVENT_ON_CLOSED        0x04
 
 #define SIM_SOCK_IS_STATE(sock, stat)    ((sock)->state == stat)
-#define SIM_SOCK_SET_STATE(sock, stat)   {(sock)->state = stat;}
+#define SIM_SOCK_SET_STATE(sock, stat)   ((sock)->state = stat)
 
 typedef struct {
   SIM_HandlerTypeDef  *hsim;
@@ -59,12 +61,17 @@ typedef struct {
   struct {
     void (*onConnecting)(void);
     void (*onConnected)(void);
+    void (*onConnectError)(void);
     void (*onClosed)(void);
+    void (*onReceived)(STRM_Buffer_t*);
   } listeners;
 
   // buffer
-  STRM_Buffer_t       buffer;
+  STRM_Buffer_t buffer;
 } SIM_Socket_t;
+
+uint8_t SIM_NetCheckAsyncResponse(SIM_HandlerTypeDef*);
+void    SIM_NetHandleEvents(SIM_HandlerTypeDef*);
 
 // simcom feature net and socket
 void          SIM_NetOpen(SIM_HandlerTypeDef*);
@@ -72,8 +79,6 @@ SIM_Status_t  SIM_SockOpenTCPIP(SIM_HandlerTypeDef*, int8_t *linkNum, const char
 void          SIM_SockClose(SIM_HandlerTypeDef*, uint8_t linkNum);
 void          SIM_SockRemoveListener(SIM_HandlerTypeDef*, uint8_t linkNum);
 void          SIM_SockSendData(SIM_HandlerTypeDef*, int8_t linkNum, const uint8_t *data, uint16_t length);
-uint8_t       SIM_NetCheckAsyncResponse(SIM_HandlerTypeDef*);
-void          SIM_NetEventsHandler(SIM_HandlerTypeDef*);
 
 // socket method
 SIM_Status_t  SIM_SOCK_Init(SIM_Socket_t*, const char *host, uint16_t port);

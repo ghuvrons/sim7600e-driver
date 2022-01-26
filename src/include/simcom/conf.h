@@ -20,10 +20,13 @@
 #define SIM_EN_FEATURE_SOCKET 0
 #endif
 
+#ifndef SIM_EN_FEATURE_MQTT
+#define SIM_EN_FEATURE_MQTT 0
+#endif
+
 #ifndef SIM_NUM_OF_SOCKET
 #define SIM_NUM_OF_SOCKET  4
 #endif
-
 
 #ifndef SIM_CMD_BUFFER_SIZE
 #define SIM_CMD_BUFFER_SIZE  256
