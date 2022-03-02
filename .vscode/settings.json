@@ -4,6 +4,11 @@
     "string.h": "c",
     "stm32f4xx_hal.h": "c",
     "stdlib.h": "c",
-    "algorithm": "c"
+    "algorithm": "c",
+    "simcom.h": "c",
+    "conf.h": "c",
+    "utils.h": "c",
+    "dma_streamer.h": "c",
+    "socket.h": "c"
   }
 }

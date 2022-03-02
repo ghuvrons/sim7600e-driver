@@ -86,7 +86,6 @@ void          SIM_SOCK_SetBuffer(SIM_Socket_t*, uint8_t *buffer, uint16_t size);
 SIM_Status_t  SIM_SOCK_Open(SIM_Socket_t*, SIM_HandlerTypeDef*);
 void          SIM_SOCK_Close(SIM_Socket_t*);
 uint16_t      SIM_SOCK_SendData(SIM_Socket_t*, const uint8_t *data, uint16_t length);
-void          SIM_SOCK_OnReceiveData(SIM_Socket_t*, void (*onReceive)(uint16_t));
 
 #endif /* SIM5300E_INC_SIMNET_H_ */
 #endif /* SIM_EN_FEATURE_SOCKET */

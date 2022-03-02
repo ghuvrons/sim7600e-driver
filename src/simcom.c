@@ -9,6 +9,7 @@
 #include "include/simcom.h"
 #include "include/simcom/conf.h"
 #include "include/simcom/utils.h"
+#include "include/simcom/debug.h"
 #include "include/simcom/socket.h"
 #include <stdio.h>
 #include <string.h>
@@ -39,6 +40,7 @@ __weak void SIM_UnlockCMD(SIM_HandlerTypeDef *hsim)
 
 void SIM_Init(SIM_HandlerTypeDef *hsim, STRM_handlerTypeDef *dmaStreamer)
 {
+  SIM_Debug("Init");
   dmaStreamer->config.breakLine = STRM_BREAK_CRLF;
   hsim->dmaStreamer = dmaStreamer;
   hsim->timeout = 2000;
@@ -73,11 +75,13 @@ void SIM_CheckAsyncResponse(SIM_HandlerTypeDef *hsim)
 {
   if (SIM_IsResponse(hsim, "RDY", 3)) {
     SIM_BITS_SET(hsim->events, SIM_EVENT_ON_STARTING);
+    SIM_Debug("Starting.");
   }
 
   else if (!SIM_IS_STATUS(hsim, SIM_STATUS_START) && SIM_IsResponse(hsim, "PB ", 3)) {
     SIM_SET_STATUS(hsim, SIM_STATUS_START);
     SIM_BITS_SET(hsim->events, SIM_EVENT_ON_STARTED);
+    SIM_Debug("Started.");
   }
 
 #ifdef SIM_EN_FEATURE_SOCKET
@@ -102,8 +106,10 @@ void SIM_HandleEvents(SIM_HandlerTypeDef *hsim)
   if (SIM_IS_STATUS(hsim, SIM_STATUS_START) && !SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE)){
     SIM_Echo(hsim, 0);
     SIM_CheckAT(hsim);
+    SIM_Debug("Activating.");
   }
   if (SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE) && !SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED)){
+    SIM_Debug("Active.");
     SIM_ReqisterNetwork(hsim);
   }
 
@@ -212,7 +218,7 @@ void SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
 
 SIM_Datetime SIM_GetTime(SIM_HandlerTypeDef *hsim)
 {
-  SIM_Datetime result;
+  SIM_Datetime result = {0};
   uint8_t resp[22];
 
   // send command then get response;

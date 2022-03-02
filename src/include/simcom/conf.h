@@ -28,6 +28,10 @@
 #define SIM_NUM_OF_SOCKET  4
 #endif
 
+#ifndef SIM_DEBUG
+#define SIM_DEBUG 1
+#endif
+
 #ifndef SIM_CMD_BUFFER_SIZE
 #define SIM_CMD_BUFFER_SIZE  256
 #endif

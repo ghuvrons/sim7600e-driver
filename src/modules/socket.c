@@ -339,13 +339,7 @@ uint16_t SIM_SOCK_SendData(SIM_Socket_t *sock, const uint8_t *data, uint16_t len
 {
   if (!SIM_SOCK_IS_STATE(sock, SIM_SOCK_STATE_OPEN)) return 0;
   SIM_SockSendData(sock->hsim, sock->linkNum, data, length);
-  return 0;
-}
-
-
-void SIM_SOCK_OnReceiveData(SIM_Socket_t *sock, void (*onReceived)(uint16_t))
-{
-//  sock->listener.onReceived = onReceived;
+  return 1;
 }
 
 
@@ -391,6 +385,9 @@ static void receiveData(SIM_HandlerTypeDef *hsim)
         socket->listeners.onReceived(&(socket->buffer));
     }
     STRM_ReadToBuffer(hsim->dmaStreamer, &(socket->buffer), dataLen, 2000);
+
+    if (socket->listeners.onReceived != NULL)
+      socket->listeners.onReceived(&(socket->buffer));
 
     SIM_BITS_SET(socket->events, SIM_SOCK_EVENT_ON_RECEIVED);
   }

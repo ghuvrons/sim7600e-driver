@@ -8,11 +8,15 @@
 #include "include/simcom.h"
 #include "include/simcom/conf.h"
 #include "include/simcom/utils.h"
+#include "include/simcom/debug.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <dma_streamer.h>
 
+
+__weak void SIM_Printf(const char *format, ...) {}
+__weak void SIM_Println(const char *format, ...) {}
 
 void SIM_SendCMD(SIM_HandlerTypeDef *hsim, const char *format, ...)
 {
