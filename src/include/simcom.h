@@ -102,7 +102,7 @@ void SIM_LockCMD(SIM_HandlerTypeDef*);
 void SIM_UnlockCMD(SIM_HandlerTypeDef*);
 
 void          SIM_Init(SIM_HandlerTypeDef*, STRM_handlerTypeDef*);
-void          SIM_CheckAnyResponse(SIM_HandlerTypeDef*, uint32_t timeout);
+void          SIM_CheckAnyResponse(SIM_HandlerTypeDef*);
 void          SIM_CheckAsyncResponse(SIM_HandlerTypeDef*);
 void          SIM_HandleEvents(SIM_HandlerTypeDef*);
 void          SIM_Echo(SIM_HandlerTypeDef*, uint8_t onoff);

@@ -56,15 +56,12 @@ void SIM_Init(SIM_HandlerTypeDef *hsim, STRM_handlerTypeDef *dmaStreamer)
 /*
  * Read response per lines at a certain time interval
  */
-void SIM_CheckAnyResponse(SIM_HandlerTypeDef *hsim, uint32_t timeout)
+void SIM_CheckAnyResponse(SIM_HandlerTypeDef *hsim)
 {
   // Read incoming Response
-  uint32_t tickstart = SIM_GetTick();
   SIM_LockCMD(hsim);
   while (STRM_IsReadable(hsim->dmaStreamer)) {
-    if((SIM_GetTick() - tickstart) >= timeout) break;
-
-    hsim->respBufferLen = STRM_Readline(hsim->dmaStreamer, hsim->respBuffer, SIM_RESP_BUFFER_SIZE, timeout);
+    hsim->respBufferLen = STRM_Readline(hsim->dmaStreamer, hsim->respBuffer, SIM_RESP_BUFFER_SIZE, 1000);
     if (hsim->respBufferLen) {
       SIM_CheckAsyncResponse(hsim);
     }
