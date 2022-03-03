@@ -22,14 +22,15 @@
  *      4   is net opened
  */
 
-#define SIM_STATUS_START        0x01
-#define SIM_STATUS_ACTIVE       0x02
-#define SIM_STATUS_REGISTERED   0x04
-#define SIM_STATUS_UART_READING 0x08
-#define SIM_STATUS_UART_WRITING 0x10
-#define SIM_STATUS_CMD_RUNNING  0x20
-#define SIM_STATUS_NET_OPEN     0x40
-#define SIM_STATUS_NET_OPENING  0x80
+#define SIM_STATUS_START            0x0001
+#define SIM_STATUS_ACTIVE           0x0002
+#define SIM_STATUS_REGISTERED       0x0004
+#define SIM_STATUS_UART_READING     0x0008
+#define SIM_STATUS_UART_WRITING     0x0010
+#define SIM_STATUS_CMD_RUNNING      0x0020
+#define SIM_STATUS_NET_OPEN         0x0100
+#define SIM_STATUS_NET_OPENING      0x0200
+#define SIM_STATUS_NET_SOCK_OPENING 0x0400
 
 #define SIM_GETRESP_WAIT_OK   0
 #define SIM_GETRESP_ONLY_DATA 1
@@ -60,7 +61,7 @@ typedef enum {
 } SIM_Status_t;
 
 typedef struct {
-  uint8_t             status;
+  uint16_t            status;
   uint8_t             events;
   uint8_t             errors;
   uint8_t             signal;
