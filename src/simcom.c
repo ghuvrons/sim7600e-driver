@@ -5,7 +5,7 @@
  *      Author: janoko
  */
 
-#include "stm32f4xx_hal.h"
+
 #include "include/simcom.h"
 #include "include/simcom/conf.h"
 #include "include/simcom/utils.h"
@@ -23,7 +23,6 @@ static void str2Time(SIM_Datetime*, const char*);
 
 
 // function definition
-
 __weak void SIM_LockCMD(SIM_HandlerTypeDef *hsim)
 {
   while(SIM_IS_STATUS(hsim, SIM_STATUS_CMD_RUNNING)){
@@ -41,9 +40,15 @@ __weak void SIM_UnlockCMD(SIM_HandlerTypeDef *hsim)
 void SIM_Init(SIM_HandlerTypeDef *hsim, STRM_handlerTypeDef *dmaStreamer)
 {
   SIM_Debug("Init");
-  dmaStreamer->config.breakLine = STRM_BREAK_CRLF;
+  hsim->status = 0;
+  hsim->events = 0;
+  hsim->errors = 0;
+  hsim->signal = 0;
+  if (hsim->timeout == 0)
+    hsim->timeout = 2000;
+  hsim->initAt = SIM_GetTick();
   hsim->dmaStreamer = dmaStreamer;
-  hsim->timeout = 2000;
+  dmaStreamer->config.breakLine = STRM_BREAK_CRLF;
   return;
 }
 
@@ -75,13 +80,11 @@ void SIM_CheckAsyncResponse(SIM_HandlerTypeDef *hsim)
 {
   if (SIM_IsResponse(hsim, "RDY", 3)) {
     SIM_BITS_SET(hsim->events, SIM_EVENT_ON_STARTING);
-    SIM_Debug("Starting.");
   }
 
   else if (!SIM_IS_STATUS(hsim, SIM_STATUS_START) && SIM_IsResponse(hsim, "PB ", 3)) {
     SIM_SET_STATUS(hsim, SIM_STATUS_START);
     SIM_BITS_SET(hsim->events, SIM_EVENT_ON_STARTED);
-    SIM_Debug("Started.");
   }
 
 #ifdef SIM_EN_FEATURE_SOCKET
@@ -96,21 +99,29 @@ void SIM_CheckAsyncResponse(SIM_HandlerTypeDef *hsim)
 void SIM_HandleEvents(SIM_HandlerTypeDef *hsim)
 {
   // check async response
+  if (hsim->status == 0 && (SIM_GetTick() - hsim->initAt > hsim->timeout)) {
+    if (!SIM_CheckAT(hsim)) {
+      hsim->initAt = SIM_GetTick();
+    }
+  }
   if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTING)) {
+    SIM_Debug("Starting.");
     SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_STARTING);
     SIM_reset(hsim);
   }
   if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTED)) {
+    SIM_Debug("Started.");
     SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_STARTED);
   }
   if (SIM_IS_STATUS(hsim, SIM_STATUS_START) && !SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE)){
+    SIM_Debug("Activating.");
     SIM_Echo(hsim, 0);
     SIM_CheckAT(hsim);
-    SIM_Debug("Activating.");
   }
   if (SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE) && !SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED)){
-    SIM_Debug("Active.");
-    SIM_ReqisterNetwork(hsim);
+    if(!SIM_ReqisterNetwork(hsim)) {
+      SIM_Delay(3000);
+    }
   }
 
 #ifdef SIM_EN_FEATURE_SOCKET
@@ -132,19 +143,24 @@ void SIM_Echo(SIM_HandlerTypeDef *hsim, uint8_t onoff)
 }
 
 
-void SIM_CheckAT(SIM_HandlerTypeDef *hsim)
+uint8_t SIM_CheckAT(SIM_HandlerTypeDef *hsim)
 {
+  uint8_t isOK = 0;
   // send command;
   SIM_LockCMD(hsim);
   SIM_SendCMD(hsim, "AT");
 
   // wait response
   if (SIM_IsResponseOK(hsim)){
+    isOK = 1;
+    SIM_SET_STATUS(hsim, SIM_STATUS_START);
     SIM_SET_STATUS(hsim, SIM_STATUS_ACTIVE);
   } else {
     SIM_UNSET_STATUS(hsim, SIM_STATUS_ACTIVE);
   }
   SIM_UnlockCMD(hsim);
+
+  return isOK;
 }
 
 
@@ -178,16 +194,20 @@ uint8_t SIM_CheckSignal(SIM_HandlerTypeDef *hsim)
 }
 
 
-void SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
+uint8_t SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
 {
   uint8_t resp[16];
   // uint8_t resp_n = 0;
   uint8_t resp_stat = 0;
+  uint8_t resp_mode = 0;
+  uint8_t isOK = 0;
 
   // send command then get response;
   SIM_LockCMD(hsim);
+
+  memset(resp, 0, 16);
   SIM_SendCMD(hsim, "AT+CREG?");
-  if (SIM_GetResponse(hsim, "+CREG", 5, &resp[0], 16, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
+  if (SIM_GetResponse(hsim, "+CREG", 5, &resp[0], 3, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
     // resp_n = (uint8_t) atoi((char*)&resp[0]);
     resp_stat = (uint8_t) atoi((char*)&resp[2]);
   }
@@ -196,23 +216,39 @@ void SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
   // check response
   if (resp_stat == 1) {
     SIM_SET_STATUS(hsim, SIM_STATUS_REGISTERED);
+    SIM_Debug("Registered");
+    isOK = 1;
   }
   else {
     SIM_UNSET_STATUS(hsim, SIM_STATUS_REGISTERED);
 
     if (resp_stat == 0) {
-      // write creg
-      SIM_SendCMD(hsim, "AT+CREG=1");
+      SIM_Debug("Registering");
+
+      // Select operator automatically
+      memset(resp, 0, 16);
+      SIM_SendCMD(hsim, "AT+COPS?");
+      if (SIM_GetResponse(hsim, "+COPS", 5, &resp[0], 1, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
+        resp_mode = (uint8_t) atoi((char*)&resp[0]);
+      }
+      else goto endcmd;
+
+      SIM_SendCMD(hsim, "AT+COPS=?");
       if (!SIM_IsResponseOK(hsim)) goto endcmd;
 
-      // execute creg
-      SIM_SendCMD(hsim, "AT+CREG");
-      if (!SIM_IsResponseOK(hsim)) goto endcmd;
+      if (resp_mode != 0) {
+        SIM_SendCMD(hsim, "AT+COPS=0");
+        if (!SIM_IsResponseOK(hsim)) goto endcmd;
+
+        SIM_SendCMD(hsim, "AT+COPS");
+        if (!SIM_IsResponseOK(hsim)) goto endcmd;
+      }
     }
   }
 
   endcmd:
   SIM_UnlockCMD(hsim);
+  return isOK;
 }
 
 
@@ -275,7 +311,9 @@ static void SIM_reset(SIM_HandlerTypeDef *hsim)
   SIM_BITS_SET(hsim->events, SIM_EVENT_ON_NET_RESET);
 #endif
 
+  hsim->signal = 0;
   hsim->status = 0;
+  hsim->errors = 0;
 }
 
 static void str2Time(SIM_Datetime *dt, const char *str)

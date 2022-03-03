@@ -8,6 +8,10 @@
 #ifndef SIM5320E_INC_SIMCOM_CONF_H_
 #define SIM5320E_INC_SIMCOM_CONF_H_
 
+#ifndef SIM_DEBUG
+#define SIM_DEBUG 1
+#endif
+
 #ifndef SIM_GetTick
 #define SIM_GetTick() HAL_GetTick()
 #endif
