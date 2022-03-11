@@ -27,8 +27,8 @@
 
 #define SIM_SOCK_EVENT_ON_OPENED        0x01
 #define SIM_SOCK_EVENT_ON_OPENING_ERROR 0x02
-#define SIM_SOCK_EVENT_ON_RECEIVED      0x03
-#define SIM_SOCK_EVENT_ON_CLOSED        0x04
+#define SIM_SOCK_EVENT_ON_RECEIVED      0x04
+#define SIM_SOCK_EVENT_ON_CLOSED        0x08
 
 #define SIM_SOCK_IS_STATE(sock, stat)    ((sock)->state == stat)
 #define SIM_SOCK_SET_STATE(sock, stat)   ((sock)->state = stat)
@@ -78,7 +78,7 @@ void          SIM_NetOpen(SIM_HandlerTypeDef*);
 SIM_Status_t  SIM_SockOpenTCPIP(SIM_HandlerTypeDef*, int8_t *linkNum, const char *host, uint16_t port);
 void          SIM_SockClose(SIM_HandlerTypeDef*, uint8_t linkNum);
 void          SIM_SockRemoveListener(SIM_HandlerTypeDef*, uint8_t linkNum);
-void          SIM_SockSendData(SIM_HandlerTypeDef*, int8_t linkNum, const uint8_t *data, uint16_t length);
+uint16_t      SIM_SockSendData(SIM_HandlerTypeDef*, int8_t linkNum, const uint8_t *data, uint16_t length);
 
 // socket method
 SIM_Status_t  SIM_SOCK_Init(SIM_Socket_t*, const char *host, uint16_t port);

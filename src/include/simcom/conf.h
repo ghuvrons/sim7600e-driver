@@ -12,14 +12,6 @@
 #define SIM_DEBUG 1
 #endif
 
-#ifndef SIM_GetTick
-#define SIM_GetTick() HAL_GetTick()
-#endif
-#ifndef SIM_Delay
-#define SIM_Delay(ms) HAL_Delay(ms)
-#endif
-
-
 #ifndef SIM_EN_FEATURE_SOCKET
 #define SIM_EN_FEATURE_SOCKET 0
 #endif

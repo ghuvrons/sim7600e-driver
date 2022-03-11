@@ -8,8 +8,9 @@
 
 
 #include "../include/simcom.h"
-#include "../include/simcom/utils.h"
 #include "../include/simcom/socket.h"
+#include "../include/simcom/utils.h"
+#include "../include/simcom/debug.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -213,7 +214,7 @@ void SIM_NetOpen(SIM_HandlerTypeDef *hsim)
  */
 SIM_Status_t SIM_SockOpenTCPIP(SIM_HandlerTypeDef *hsim, int8_t *linkNum, const char *host, uint16_t port)
 {
-  if (!SIM_IS_STATUS(hsim, SIM_STATUS_NET_OPEN))
+  if (!SIM_IS_STATUS(hsim, SIM_STATUS_NET_OPEN) || !SIM_IS_STATUS(hsim, SIM_STATUS_NET_AVAILABLE))
   {
     return SIM_ERROR;
   }
@@ -247,10 +248,11 @@ void SIM_SockClose(SIM_HandlerTypeDef *hsim, uint8_t linkNum)
 }
 
 
-void SIM_SockSendData(SIM_HandlerTypeDef *hsim, int8_t linkNum, const uint8_t *data, uint16_t length)
+uint16_t SIM_SockSendData(SIM_HandlerTypeDef *hsim, int8_t linkNum, const uint8_t *data, uint16_t length)
 {
   char cmd[20];
-  uint8_t resp;
+  uint8_t resp = 0;
+  uint16_t sendLen = 0;
 
   SIM_LockCMD(hsim);
 
@@ -259,11 +261,12 @@ void SIM_SockSendData(SIM_HandlerTypeDef *hsim, int8_t linkNum, const uint8_t *d
   SIM_WaitResponse(hsim, "\r\n>", 3, 3000);
 
   SIM_SendData(hsim, data, length);
-  SIM_Delay(5000);
   if (SIM_GetResponse(hsim, "+CIPSEND", 8, &resp, 1, SIM_GETRESP_WAIT_OK, 5000) == SIM_OK) {
+    sendLen = length;
   }
 
   SIM_UnlockCMD(hsim);
+  return sendLen;
 }
 
 
@@ -341,19 +344,35 @@ void SIM_SOCK_Close(SIM_Socket_t *sock)
 uint16_t SIM_SOCK_SendData(SIM_Socket_t *sock, const uint8_t *data, uint16_t length)
 {
   if (!SIM_SOCK_IS_STATE(sock, SIM_SOCK_STATE_OPEN)) return 0;
-  SIM_SockSendData(sock->hsim, sock->linkNum, data, length);
-  return 1;
+  return SIM_SockSendData(sock->hsim, sock->linkNum, data, length);
 }
 
 
 static void onNetOpen(SIM_HandlerTypeDef *hsim)
 {
+  uint8_t resp[19];
+  uint8_t closing_resp[3];
 
   SIM_LockCMD(hsim);
   // TCP/IP Config
   SIM_SendCMD(hsim, "AT+CIPCCFG=10,0,0,1,1,0,10000");
-  if (SIM_IsResponseOK(hsim)) {
+  if (SIM_IsResponseOK(hsim)){}
+
+  memset(resp, 0, 17);
+  SIM_SendCMD(hsim, "AT+CIPCLOSE?");
+  if (SIM_GetResponse(hsim, "+CIPCLOSE", 9, &resp[0], 19, SIM_GETRESP_WAIT_OK, 1000) == SIM_OK) {
+    for (uint8_t i = 0; i < 10; i++) {
+      if (resp[i*2] == '1') {
+        memset(closing_resp, 0, 3);
+        SIM_SendCMD(hsim, "AT+CIPCLOSE=%d", i);
+        if (SIM_GetResponse(hsim, "+CIPCLOSE", 9, &closing_resp[0], 3, SIM_GETRESP_WAIT_OK, 1000) == SIM_OK) {
+
+        }
+      }
+    }
+    SIM_SET_STATUS(hsim, SIM_STATUS_NET_AVAILABLE);
   }
+
   SIM_UnlockCMD(hsim);
 }
 

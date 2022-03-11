@@ -75,7 +75,12 @@ void SIM_CheckAnyResponse(SIM_HandlerTypeDef *hsim)
 
 void SIM_CheckAsyncResponse(SIM_HandlerTypeDef *hsim)
 {
-  if (SIM_IsResponse(hsim, "RDY", 3)) {
+  (hsim)->respBuffer[hsim->respBufferLen] = 0;
+
+  if (SIM_IsResponse(hsim, "\r\n", 2)) {
+    return;
+  }
+  else if (SIM_IsResponse(hsim, "RDY", 3)) {
     SIM_BITS_SET(hsim->events, SIM_EVENT_ON_STARTING);
   }
 
@@ -99,6 +104,8 @@ void SIM_HandleEvents(SIM_HandlerTypeDef *hsim)
   if (hsim->status == 0 && (SIM_GetTick() - hsim->initAt > hsim->timeout)) {
     if (!SIM_CheckAT(hsim)) {
       hsim->initAt = SIM_GetTick();
+    } else {
+      SIM_Echo(hsim, 0);
     }
   }
   if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTING)) {
@@ -177,7 +184,6 @@ uint8_t SIM_CheckSignal(SIM_HandlerTypeDef *hsim)
   if (SIM_GetResponse(hsim, "+CSQ", 4, &resp[0], 16, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
     SIM_ParseStr(&resp[0], ',', 1, (uint8_t*) &signalStr[0]);
     signal = (uint8_t) atoi((char*)&resp[0]);
-    printf("signal : %d\r\n", (int) signal);
   }
   SIM_UnlockCMD(hsim);
 
