@@ -39,11 +39,20 @@ uint8_t SIM_WaitResponse( SIM_HandlerTypeDef *hsim,
                           const char *respCode, uint16_t rcsize,
                           uint32_t timeout)
 {
+  uint32_t tickstart = STRM_GetTick();
   if (timeout == 0) timeout = hsim->timeout;
+  while (1) {
+    if((STRM_GetTick() - tickstart) >= timeout) break;
+    hsim->respBufferLen = STRM_Read(hsim->dmaStreamer, hsim->respBuffer, rcsize, timeout);
+    if (SIM_IsResponse(hsim, respCode, rcsize)) {
+      return 1;
+    }
+    STRM_Unread(hsim->dmaStreamer, hsim->respBufferLen);
 
-  hsim->respBufferLen = STRM_Read(hsim->dmaStreamer, hsim->respBuffer, rcsize, timeout);
-  if (SIM_IsResponse(hsim, respCode, rcsize)) {
-    return 1;
+    hsim->respBufferLen = STRM_Readline(hsim->dmaStreamer, hsim->respBuffer, SIM_RESP_BUFFER_SIZE, timeout);
+    if (hsim->respBufferLen) {
+      SIM_CheckAsyncResponse(hsim);
+    }
   }
   return 0;
 }

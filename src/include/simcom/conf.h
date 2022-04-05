@@ -12,13 +12,12 @@
 #define SIM_DEBUG 1
 #endif
 
+
 #ifndef SIM_EN_FEATURE_SOCKET
 #define SIM_EN_FEATURE_SOCKET 0
 #endif
 
-#ifndef SIM_EN_FEATURE_MQTT
-#define SIM_EN_FEATURE_MQTT 0
-#endif
+#define SIM_EN_FEATURE_NET SIM_EN_FEATURE_SOCKET
 
 #ifndef SIM_NUM_OF_SOCKET
 #define SIM_NUM_OF_SOCKET  4

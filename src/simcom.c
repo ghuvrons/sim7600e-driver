@@ -10,6 +10,7 @@
 #include "include/simcom/conf.h"
 #include "include/simcom/utils.h"
 #include "include/simcom/debug.h"
+#include "include/simcom/net.h"
 #include "include/simcom/socket.h"
 #include <stdio.h>
 #include <string.h>
@@ -89,8 +90,12 @@ void SIM_CheckAsyncResponse(SIM_HandlerTypeDef *hsim)
     SIM_BITS_SET(hsim->events, SIM_EVENT_ON_STARTED);
   }
 
-#ifdef SIM_EN_FEATURE_SOCKET
+#ifdef SIM_EN_FEATURE_NET
   else if (SIM_NetCheckAsyncResponse(hsim)) return;
+#endif
+
+#ifdef SIM_EN_FEATURE_SOCKET
+  else if (SIM_SockCheckAsyncResponse(hsim)) return;
 #endif
 }
 
@@ -108,14 +113,13 @@ void SIM_HandleEvents(SIM_HandlerTypeDef *hsim)
       SIM_Echo(hsim, 0);
     }
   }
+
   if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTING)) {
     SIM_Debug("Starting.");
-    SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_STARTING);
     SIM_reset(hsim);
   }
   if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTED)) {
     SIM_Debug("Started.");
-    SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_STARTED);
   }
   if (SIM_IS_STATUS(hsim, SIM_STATUS_START) && !SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE)){
     SIM_Debug("Activating.");
@@ -128,9 +132,26 @@ void SIM_HandleEvents(SIM_HandlerTypeDef *hsim)
     }
   }
 
-#ifdef SIM_EN_FEATURE_SOCKET
+#ifdef SIM_EN_FEATURE_NET
   SIM_NetHandleEvents(hsim);
 #endif
+
+#ifdef SIM_EN_FEATURE_SOCKET
+  SIM_SockHandleEvents(hsim);
+#endif
+
+  if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTING)) {
+    SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_STARTING);
+  }
+  if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTED)) {
+    SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_STARTED);
+  }
+  if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_REGISTERED)) {
+    SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_REGISTERED);
+  }
+  if (SIM_BITS_IS(hsim->net.events, SIM_NET_EVENT_ON_OPENED)) {
+    SIM_BITS_UNSET(hsim->net.events, SIM_NET_EVENT_ON_OPENED);
+  }
 }
 
 
@@ -220,6 +241,7 @@ uint8_t SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
   if (resp_stat == 1) {
     SIM_SET_STATUS(hsim, SIM_STATUS_REGISTERED);
     SIM_Debug("Registered");
+    SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_REGISTERED);
     isOK = 1;
   }
   else {
@@ -310,10 +332,6 @@ void SIM_SendUSSD(SIM_HandlerTypeDef *hsim, const char *ussd)
 
 static void SIM_reset(SIM_HandlerTypeDef *hsim)
 {
-#ifdef SIM_EN_FEATURE_SOCKET
-  SIM_BITS_SET(hsim->events, SIM_EVENT_ON_NET_RESET);
-#endif
-
   hsim->signal = 0;
   hsim->status = 0;
   hsim->errors = 0;

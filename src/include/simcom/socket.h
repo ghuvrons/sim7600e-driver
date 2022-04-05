@@ -5,8 +5,8 @@
  *      Author: janoko
  */
 
-#ifndef SIM5320E_INC_SIMNET_H_
-#define SIM5320E_INC_SIMNET_H_
+#ifndef SIM5320E_INC_SIMSOCK_H_
+#define SIM5320E_INC_SIMSOCK_H_
 
 #include "conf.h"
 #if SIM_EN_FEATURE_SOCKET
@@ -70,11 +70,10 @@ typedef struct {
   STRM_Buffer_t buffer;
 } SIM_Socket_t;
 
-uint8_t SIM_NetCheckAsyncResponse(SIM_HandlerTypeDef*);
-void    SIM_NetHandleEvents(SIM_HandlerTypeDef*);
+uint8_t SIM_SockCheckAsyncResponse(SIM_HandlerTypeDef*);
+void    SIM_SockHandleEvents(SIM_HandlerTypeDef*);
 
 // simcom feature net and socket
-void          SIM_NetOpen(SIM_HandlerTypeDef*);
 SIM_Status_t  SIM_SockOpenTCPIP(SIM_HandlerTypeDef*, int8_t *linkNum, const char *host, uint16_t port);
 void          SIM_SockClose(SIM_HandlerTypeDef*, uint8_t linkNum);
 void          SIM_SockRemoveListener(SIM_HandlerTypeDef*, uint8_t linkNum);
@@ -87,5 +86,5 @@ SIM_Status_t  SIM_SOCK_Open(SIM_Socket_t*, SIM_HandlerTypeDef*);
 void          SIM_SOCK_Close(SIM_Socket_t*);
 uint16_t      SIM_SOCK_SendData(SIM_Socket_t*, const uint8_t *data, uint16_t length);
 
-#endif /* SIM5300E_INC_SIMNET_H_ */
 #endif /* SIM_EN_FEATURE_SOCKET */
+#endif /* SIM5320E_INC_SIMSOCK_H_ */

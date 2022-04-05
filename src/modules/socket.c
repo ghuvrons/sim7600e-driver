@@ -8,6 +8,7 @@
 
 
 #include "../include/simcom.h"
+#include "../include/simcom/net.h"
 #include "../include/simcom/socket.h"
 #include "../include/simcom/utils.h"
 #include "../include/simcom/debug.h"
@@ -32,7 +33,7 @@ static SIM_Status_t sockOpen(SIM_Socket_t*);
 }
 
 
-uint8_t SIM_NetCheckAsyncResponse(SIM_HandlerTypeDef *hsim)
+uint8_t SIM_SockCheckAsyncResponse(SIM_HandlerTypeDef *hsim)
 {
   int8_t linkNum;
   SIM_Socket_t *socket;
@@ -42,23 +43,15 @@ uint8_t SIM_NetCheckAsyncResponse(SIM_HandlerTypeDef *hsim)
     receiveData(hsim);
   }
 
-  else if ((isGet = (hsim->respBufferLen >= 11 && SIM_IsResponse(hsim, "+NETOPEN", 8)))) {
-    SIM_UNSET_STATUS(hsim, SIM_STATUS_NET_OPENING);
-    if (hsim->respBuffer[10] == '0') {
-      SIM_SET_STATUS(hsim, SIM_STATUS_NET_OPEN);
-      SIM_BITS_SET(hsim->events, SIM_EVENT_ON_NET_OPENED);
-    }
-  }
-
   else if ((isGet = (
-              SIM_IS_STATUS(hsim, SIM_STATUS_NET_SOCK_OPENING)
+              SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_SOCK_OPENING)
               && hsim->respBufferLen >= 13
               && SIM_IsResponse(hsim, "+CIPOPEN", 8)))
   ){
     linkNum   = (int8_t) atoi((char*)&(hsim->respBuffer[10]));
     int err   =          atoi((char*)&(hsim->respBuffer[12]));
 
-    SIM_UNSET_STATUS(hsim, SIM_STATUS_NET_SOCK_OPENING);
+    SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_SOCK_OPENING);
 
     socket = (SIM_Socket_t*) hsim->net.sockets[linkNum];
     if (socket != NULL) {
@@ -84,25 +77,16 @@ uint8_t SIM_NetCheckAsyncResponse(SIM_HandlerTypeDef *hsim)
     }
   }
 
-  else if ((isGet = SIM_IsResponse(hsim, "+CIPEVENT", 9))) {
-    if (strncmp((const char *)&(hsim->respBuffer[11]), "NETWORK CLOSED", 14)) {
-      SIM_BITS_SET(hsim->events, SIM_EVENT_ON_NET_CLOSED);
-      SIM_UNSET_STATUS(hsim, SIM_STATUS_NET_OPEN|SIM_STATUS_NET_OPENING);
-    }
-  }
-
   return isGet;
 }
 
 
-void SIM_NetHandleEvents(SIM_HandlerTypeDef *hsim)
+void SIM_SockHandleEvents(SIM_HandlerTypeDef *hsim)
 {
   int16_t i;
   SIM_Socket_t *socket;
 
-  if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_NET_RESET)) {
-    SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_NET_RESET);
-
+  if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTED)) {
     for (i = 0; i < SIM_NUM_OF_SOCKET; i++) {
       if ((socket = hsim->net.sockets[i]) != NULL)
       {
@@ -125,19 +109,12 @@ void SIM_NetHandleEvents(SIM_HandlerTypeDef *hsim)
     }
   }
 
-  if (SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED)
-      && !SIM_IS_STATUS(hsim, SIM_STATUS_NET_OPEN)
-      && !SIM_IS_STATUS(hsim, SIM_STATUS_NET_OPENING)){
-    SIM_NetOpen(hsim);
-  }
-
-  if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_NET_OPENED)) {
-    SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_NET_OPENED);
+  if (SIM_BITS_IS(hsim->net.events, SIM_NET_EVENT_ON_OPENED)) {
     onNetOpen(hsim);
   }
 
   // Socket Event Handler
-  for (i = 0; SIM_IS_STATUS(hsim, SIM_STATUS_NET_OPEN) && i < SIM_NUM_OF_SOCKET; i++)
+  for (i = 0; SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_OPEN) && i < SIM_NUM_OF_SOCKET; i++)
   {
     if ((socket = hsim->net.sockets[i]) != NULL) {
       if (SIM_BITS_IS(socket->events, SIM_SOCK_EVENT_ON_OPENED)) {
@@ -180,41 +157,13 @@ void SIM_NetHandleEvents(SIM_HandlerTypeDef *hsim)
 }
 
 
-void SIM_NetOpen(SIM_HandlerTypeDef *hsim)
-{
-  uint8_t resp;
-
-  if (SIM_IS_STATUS(hsim, SIM_STATUS_NET_OPENING)) return;
-
-  SIM_LockCMD(hsim);
-
-  // check net state
-  SIM_SendCMD(hsim, "AT+NETOPEN?");
-  if (SIM_GetResponse(hsim, "+NETOPEN", 8, &resp, 1, SIM_GETRESP_WAIT_OK, 1000) == SIM_OK) {
-    if (resp == '1') { // net already open;
-      SIM_SET_STATUS(hsim, SIM_STATUS_NET_OPEN);
-      SIM_BITS_SET(hsim->events, SIM_EVENT_ON_NET_OPENED);
-      goto endCMD;
-    }
-  }
-  SIM_SendCMD(hsim, "AT+NETOPEN");
-  SIM_SET_STATUS(hsim, SIM_STATUS_NET_OPENING);
-  if (SIM_IsResponseOK(hsim)) {
-    goto endCMD;
-  }
-  SIM_UNSET_STATUS(hsim, SIM_STATUS_NET_OPENING);
-  endCMD:
-  SIM_UnlockCMD(hsim);
-}
-
-
 /*
  * return linknum if connected
  * return -1 if not connected
  */
 SIM_Status_t SIM_SockOpenTCPIP(SIM_HandlerTypeDef *hsim, int8_t *linkNum, const char *host, uint16_t port)
 {
-  if (!SIM_IS_STATUS(hsim, SIM_STATUS_NET_OPEN) || !SIM_IS_STATUS(hsim, SIM_STATUS_NET_AVAILABLE))
+  if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_OPEN) || !SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_AVAILABLE))
   {
     return SIM_ERROR;
   }
@@ -227,7 +176,7 @@ SIM_Status_t SIM_SockOpenTCPIP(SIM_HandlerTypeDef *hsim, int8_t *linkNum, const 
   SIM_LockCMD(hsim);
   SIM_SendCMD(hsim, "AT+CIPOPEN=%d,\"TCP\",\"%s\",%d", *linkNum, host, port);
 
-  SIM_SET_STATUS(hsim, SIM_STATUS_NET_SOCK_OPENING);
+  SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_SOCK_OPENING);
   SIM_SOCK_SET_STATE((SIM_Socket_t*)hsim->net.sockets[*linkNum], SIM_SOCK_STATE_OPENING);
 
   if (SIM_IsResponseOK(hsim)) {
@@ -258,11 +207,12 @@ uint16_t SIM_SockSendData(SIM_HandlerTypeDef *hsim, int8_t linkNum, const uint8_
 
   sprintf(cmd, "AT+CIPSEND=%d,%d\r", linkNum, length);
   SIM_SendData(hsim, (uint8_t*)cmd, strlen(cmd));
-  SIM_WaitResponse(hsim, "\r\n>", 3, 3000);
+  if (SIM_WaitResponse(hsim, ">", 1, 3000)) {
+    SIM_SendData(hsim, data, length);
+    if (SIM_GetResponse(hsim, "+CIPSEND", 8, &resp, 1, SIM_GETRESP_WAIT_OK, 5000) == SIM_OK) {
+      sendLen = length;
+    }
 
-  SIM_SendData(hsim, data, length);
-  if (SIM_GetResponse(hsim, "+CIPSEND", 8, &resp, 1, SIM_GETRESP_WAIT_OK, 5000) == SIM_OK) {
-    sendLen = length;
   }
 
   SIM_UnlockCMD(hsim);
@@ -370,7 +320,7 @@ static void onNetOpen(SIM_HandlerTypeDef *hsim)
         }
       }
     }
-    SIM_SET_STATUS(hsim, SIM_STATUS_NET_AVAILABLE);
+    SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_AVAILABLE);
   }
 
   SIM_UnlockCMD(hsim);
