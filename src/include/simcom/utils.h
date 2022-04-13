@@ -53,8 +53,8 @@
 #define SIM_MQTT_UNSET_STATUS(hsim, stat)  SIM_BITS_UNSET((hsim)->mqtt.status, stat)
 #endif
 
-void          SIM_SendCMD(SIM_HandlerTypeDef*, const char *format, ...);
-void          SIM_SendData(SIM_HandlerTypeDef*, const uint8_t *data, uint16_t size);
+uint8_t       SIM_SendCMD(SIM_HandlerTypeDef*, const char *format, ...);
+uint8_t       SIM_SendData(SIM_HandlerTypeDef*, const uint8_t *data, uint16_t size);
 uint8_t       SIM_WaitResponse(SIM_HandlerTypeDef*, const char *respCode, uint16_t rcsize, uint32_t timeout);
 SIM_Status_t  SIM_GetResponse(SIM_HandlerTypeDef*, const char *respCode, uint16_t rcsize,
                               uint8_t *respData, uint16_t rdsize,

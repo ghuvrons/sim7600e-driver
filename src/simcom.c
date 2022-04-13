@@ -76,12 +76,13 @@ void SIM_CheckAnyResponse(SIM_HandlerTypeDef *hsim)
 
 void SIM_CheckAsyncResponse(SIM_HandlerTypeDef *hsim)
 {
-  (hsim)->respBuffer[hsim->respBufferLen] = 0;
+  hsim->respBuffer[hsim->respBufferLen] = 0;
 
   if (SIM_IsResponse(hsim, "\r\n", 2)) {
     return;
   }
-  else if (SIM_IsResponse(hsim, "RDY", 3)) {
+
+  if (SIM_IsResponse(hsim, "RDY", 3)) {
     SIM_BITS_SET(hsim->events, SIM_EVENT_ON_STARTING);
   }
 
@@ -205,16 +206,17 @@ uint8_t SIM_CheckSignal(SIM_HandlerTypeDef *hsim)
   if (SIM_GetResponse(hsim, "+CSQ", 4, &resp[0], 16, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
     SIM_ParseStr(&resp[0], ',', 1, (uint8_t*) &signalStr[0]);
     signal = (uint8_t) atoi((char*)&resp[0]);
+    hsim->signal = signal;
   }
   SIM_UnlockCMD(hsim);
 
   if (signal == 99) {
     signal = 0;
+    hsim->signal = signal;
     SIM_ReqisterNetwork(hsim);
   }
-  hsim->signal = signal;
 
-  return signal;
+  return hsim->signal;
 }
 
 
@@ -268,6 +270,10 @@ uint8_t SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
         SIM_SendCMD(hsim, "AT+COPS");
         if (!SIM_IsResponseOK(hsim)) goto endcmd;
       }
+    }
+    else if (resp_stat == 2) {
+      SIM_Debug("Searching network....");
+      SIM_Delay(2000);
     }
   }
 

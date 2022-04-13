@@ -207,14 +207,20 @@ uint16_t SIM_SockSendData(SIM_HandlerTypeDef *hsim, int8_t linkNum, const uint8_
 
   sprintf(cmd, "AT+CIPSEND=%d,%d\r", linkNum, length);
   SIM_SendData(hsim, (uint8_t*)cmd, strlen(cmd));
-  if (SIM_WaitResponse(hsim, ">", 1, 3000)) {
-    SIM_SendData(hsim, data, length);
-    if (SIM_GetResponse(hsim, "+CIPSEND", 8, &resp, 1, SIM_GETRESP_WAIT_OK, 5000) == SIM_OK) {
-      sendLen = length;
-    }
-
+  if (!SIM_WaitResponse(hsim, ">", 1, 3000))
+    goto endcmd;
+  if (!SIM_SendData(hsim, data, length))
+    goto endcmd;
+  if (!SIM_IsResponseOK(hsim))
+    goto endcmd;
+  if (SIM_GetResponse(hsim, "+CIPSEND", 8, &resp, 1, SIM_GETRESP_ONLY_DATA, 5000) == SIM_OK) {
+    sendLen = length;
+  }
+  else {
+    sendLen = 0;
   }
 
+  endcmd:
   SIM_UnlockCMD(hsim);
   return sendLen;
 }

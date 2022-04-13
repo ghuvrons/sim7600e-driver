@@ -18,19 +18,36 @@
 __weak void SIM_Printf(const char *format, ...) {}
 __weak void SIM_Println(const char *format, ...) {}
 
-void SIM_SendCMD(SIM_HandlerTypeDef *hsim, const char *format, ...)
+uint8_t SIM_SendCMD(SIM_HandlerTypeDef *hsim, const char *format, ...)
 {
   va_list arglist;
   va_start( arglist, format );
   hsim->cmdBufferLen = vsprintf(hsim->cmdBuffer, format, arglist);
   va_end( arglist );
-  STRM_Write(hsim->dmaStreamer, (uint8_t*)hsim->cmdBuffer, hsim->cmdBufferLen, STRM_BREAK_CRLF);
+  return (STRM_Write(hsim->dmaStreamer,
+                     (uint8_t*)hsim->cmdBuffer,
+                     hsim->cmdBufferLen,
+                     STRM_BREAK_CRLF) == HAL_OK);
 }
 
 
-void SIM_SendData(SIM_HandlerTypeDef *hsim, const uint8_t *data, uint16_t size)
+uint8_t SIM_SendData(SIM_HandlerTypeDef *hsim, const uint8_t *data, uint16_t size)
 {
-  STRM_Write(hsim->dmaStreamer, (uint8_t*)data, size, STRM_BREAK_NONE);
+  HAL_StatusTypeDef status;
+  uint16_t txSize = size;
+
+  while (size) {
+    if (size > hsim->dmaStreamer->txBufferSize) {
+      txSize = hsim->dmaStreamer->txBufferSize;
+    } else {
+      txSize = size;
+    }
+    status = STRM_Write(hsim->dmaStreamer, (uint8_t*)data, txSize, STRM_BREAK_NONE);
+    data += txSize;
+    size -= txSize;
+  } while (size && status == HAL_OK);
+
+  return (status == HAL_OK);
 }
 
 
@@ -77,6 +94,7 @@ SIM_Status_t SIM_GetResponse( SIM_HandlerTypeDef *hsim,
 
     hsim->respBufferLen = STRM_Readline(hsim->dmaStreamer, hsim->respBuffer, SIM_RESP_BUFFER_SIZE, timeout);
     if (hsim->respBufferLen) {
+      hsim->respBuffer[hsim->respBufferLen] = 0;
       if (rcsize && strncmp((char *)hsim->respBuffer, respCode, (int) rcsize) == 0) {
         if (flagToReadResp) continue;
 
@@ -94,10 +112,13 @@ SIM_Status_t SIM_GetResponse( SIM_HandlerTypeDef *hsim,
           }
         }
         if (rdsize) *respData = 0;
-        if (getRespType == SIM_GETRESP_ONLY_DATA) break;
+        if (getRespType == SIM_GETRESP_ONLY_DATA) {
+          resp = SIM_OK;
+          break;
+        }
         if (resp != SIM_TIMEOUT) break;
       }
-      else if (SIM_IsResponse(hsim, "OK", 2)) {
+      else if (getRespType != SIM_GETRESP_ONLY_DATA && SIM_IsResponse(hsim, "OK", 2)) {
         resp = SIM_OK;
       }
       else if (SIM_IsResponse(hsim, "ERROR", 5)) {
@@ -105,6 +126,8 @@ SIM_Status_t SIM_GetResponse( SIM_HandlerTypeDef *hsim,
       }
       else if (SIM_IsResponse(hsim, "+CME ERROR", 10)) {
         resp = SIM_ERROR;
+        hsim->respBuffer[hsim->respBufferLen] = 0;
+        SIM_Debug("[Error] %s", (char*) (hsim->respBuffer+10));
       }
 
       // check is got async response
@@ -114,8 +137,7 @@ SIM_Status_t SIM_GetResponse( SIM_HandlerTypeDef *hsim,
 
       // break if will not get data
       if (resp != SIM_TIMEOUT) {
-        if (!rcsize) break;
-        else if (flagToReadResp) break;
+        break;
       }
     }
   }
