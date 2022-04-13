@@ -110,6 +110,7 @@ void SIM_SockHandleEvents(SIM_HandlerTypeDef *hsim)
   }
 
   if (SIM_BITS_IS(hsim->net.events, SIM_NET_EVENT_ON_OPENED)) {
+    SIM_Debug("Data online");
     onNetOpen(hsim);
   }
 

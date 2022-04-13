@@ -46,7 +46,7 @@ void SIM_Init(SIM_HandlerTypeDef *hsim, STRM_handlerTypeDef *dmaStreamer)
   hsim->errors = 0;
   hsim->signal = 0;
   if (hsim->timeout == 0)
-    hsim->timeout = 2000;
+    hsim->timeout = 5000;
   hsim->initAt = SIM_GetTick();
   hsim->dmaStreamer = dmaStreamer;
   dmaStreamer->config.breakLine = STRM_BREAK_CRLF;
@@ -62,7 +62,7 @@ void SIM_CheckAnyResponse(SIM_HandlerTypeDef *hsim)
   // Read incoming Response
   SIM_LockCMD(hsim);
   while (STRM_IsReadable(hsim->dmaStreamer)) {
-    hsim->respBufferLen = STRM_Readline(hsim->dmaStreamer, hsim->respBuffer, SIM_RESP_BUFFER_SIZE, 1000);
+    hsim->respBufferLen = STRM_Readline(hsim->dmaStreamer, hsim->respBuffer, SIM_RESP_BUFFER_SIZE, 5000);
     if (hsim->respBufferLen) {
       SIM_CheckAsyncResponse(hsim);
     }
@@ -122,12 +122,12 @@ void SIM_HandleEvents(SIM_HandlerTypeDef *hsim)
   if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTED)) {
     SIM_Debug("Started.");
   }
-  if (SIM_IS_STATUS(hsim, SIM_STATUS_START) && !SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE)){
+  if (SIM_IS_STATUS(hsim, SIM_STATUS_START) && !SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE)) {
     SIM_Debug("Activating.");
     SIM_Echo(hsim, 0);
     SIM_CheckAT(hsim);
   }
-  if (SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE) && !SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED)){
+  if (SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE) && !SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED)) {
     if(!SIM_ReqisterNetwork(hsim)) {
       SIM_Delay(3000);
     }
