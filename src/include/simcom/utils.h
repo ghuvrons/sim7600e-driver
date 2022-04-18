@@ -41,7 +41,7 @@
 #define SIM_SET_STATUS(hsim, stat)    SIM_BITS_SET((hsim)->status, stat)
 #define SIM_UNSET_STATUS(hsim, stat)  SIM_BITS_UNSET((hsim)->status, stat)
 
-#if SIM_EN_FEATURE_SOCKET
+#if SIM_EN_FEATURE_NET
 #define SIM_NET_IS_STATUS(hsim, stat)     SIM_BITS_IS_ALL((hsim)->net.status, stat)
 #define SIM_NET_SET_STATUS(hsim, stat)    SIM_BITS_SET((hsim)->net.status, stat)
 #define SIM_NET_UNSET_STATUS(hsim, stat)  SIM_BITS_UNSET((hsim)->net.status, stat)

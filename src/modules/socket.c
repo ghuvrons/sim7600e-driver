@@ -315,7 +315,7 @@ static void onNetOpen(SIM_HandlerTypeDef *hsim)
   SIM_SendCMD(hsim, "AT+CIPCCFG=10,0,0,1,1,0,10000");
   if (SIM_IsResponseOK(hsim)){}
 
-  memset(resp, 0, 17);
+  memset(resp, 0, 19);
   SIM_SendCMD(hsim, "AT+CIPCLOSE?");
   if (SIM_GetResponse(hsim, "+CIPCLOSE", 9, &resp[0], 19, SIM_GETRESP_WAIT_OK, 1000) == SIM_OK) {
     for (uint8_t i = 0; i < 10; i++) {

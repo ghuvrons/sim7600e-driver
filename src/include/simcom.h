@@ -68,6 +68,10 @@ typedef struct {
     void *sockets[SIM_NUM_OF_SOCKET];
     #endif
 
+    #if SIM_EN_FEATURE_NTP
+    uint32_t ntpSyncTick;
+    #endif
+
   } net;
 #endif
 
@@ -89,7 +93,7 @@ typedef struct {
 } SIM_HandlerTypeDef;
 
 typedef struct {
-  uint8_t year;
+  uint16_t year;
   uint8_t month;
   uint8_t day;
   uint8_t hour;

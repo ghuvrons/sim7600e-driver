@@ -116,16 +116,18 @@ void SIM_HandleEvents(SIM_HandlerTypeDef *hsim)
   }
 
   if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTING)) {
-    SIM_Debug("Starting.");
+    SIM_Debug("Starting...");
     SIM_reset(hsim);
   }
   if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTED)) {
     SIM_Debug("Started.");
   }
   if (SIM_IS_STATUS(hsim, SIM_STATUS_START) && !SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE)) {
-    SIM_Debug("Activating.");
+    SIM_Debug("Activating...");
     SIM_Echo(hsim, 0);
-    SIM_CheckAT(hsim);
+    if (SIM_CheckAT(hsim)) {
+      SIM_Debug("Activated.");
+    }
   }
   if (SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE) && !SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED)) {
     if(!SIM_ReqisterNetwork(hsim)) {
@@ -345,10 +347,18 @@ static void SIM_reset(SIM_HandlerTypeDef *hsim)
 
 static void str2Time(SIM_Datetime *dt, const char *str)
 {
-  uint8_t *dtbytes = (uint8_t*) dt;
-  for (uint8_t i = 0; i < 6; i++) {
-    *dtbytes = (uint8_t) atoi(str);
-    dtbytes++;
-    str += 3;
+  uint8_t *dtbytes;
+
+  dt->year = (uint16_t) atoi(str);
+  dt->year += 2000;
+
+  dtbytes = ((uint8_t*) dt) + 2;
+  while (*str && *str != '+') {
+    if (*str < '0' || *str > '9') {
+      str++;
+      *dtbytes = (uint8_t) atoi(str);
+      dtbytes++;
+    }
+    str++;
   }
 }

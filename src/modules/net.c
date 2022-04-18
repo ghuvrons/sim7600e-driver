@@ -61,6 +61,27 @@ void SIM_NetHandleEvents(SIM_HandlerTypeDef *hsim)
   ){
     SIM_NetOpen(hsim);
   }
+
+#if SIM_EN_FEATURE_NTP
+  if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET)
+      && SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_GPRS_REGISTERED)
+      && SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_APN_WAS_SET)
+  ){
+    SIM_SetupNTP(hsim, "time.google.com", 28);
+  }
+
+  if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SYNCED)
+      && SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET)
+  ){
+    if (SIM_IsTimeout(hsim->net.ntpSyncTick, SIM_NTP_SYNC_DELAY_TIMEOUT)) {
+      SIM_SyncNTP(hsim);
+    }
+  }
+#endif /* SIM_EN_FEATURE_NTP */
+
+  if (SIM_BITS_IS(hsim->net.events, SIM_NET_EVENT_ON_GPRS_REGISTERED)) {
+    SIM_BITS_UNSET(hsim->net.events, SIM_NET_EVENT_ON_GPRS_REGISTERED);
+  }
 }
 
 
@@ -90,6 +111,62 @@ void SIM_NetOpen(SIM_HandlerTypeDef *hsim)
   endCMD:
   SIM_UnlockCMD(hsim);
 }
+
+
+#if SIM_EN_FEATURE_NTP
+void SIM_SetupNTP(SIM_HandlerTypeDef *hsim, const char *host, int8_t region)
+{
+  SIM_LockCMD(hsim);
+
+  SIM_SendCMD(hsim, "AT+CNTP=\"%s\",%d", host, (int) region);
+  if (!SIM_IsResponseOK(hsim)) {
+    goto endcmd;
+  }
+
+  SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET);
+
+  endcmd:
+  SIM_UnlockCMD(hsim);
+  SIM_SyncNTP(hsim);
+}
+
+
+uint8_t SIM_SyncNTP(SIM_HandlerTypeDef *hsim)
+{
+  uint8_t resp[5];
+  uint8_t status;
+  uint8_t isOk = 0;
+
+  hsim->net.ntpSyncTick = SIM_GetTick();
+
+  if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET)) return isOk;
+
+  memset(resp, 0, 5);
+  SIM_LockCMD(hsim);
+
+  SIM_SendCMD(hsim, "AT+CNTP");
+  if (!SIM_IsResponseOK(hsim)) {
+    goto endcmd;
+  }
+
+  if (SIM_GetResponse(hsim, "+CNTP", 5, &resp[0], 5, SIM_GETRESP_ONLY_DATA, 5000) != SIM_OK) {
+    goto endcmd;
+  }
+
+  status = (uint8_t) atoi((char*)&resp[0]);
+  if (status != 0) {
+    SIM_Debug("[ntp] error - %d", status);
+    goto endcmd;
+  }
+
+  SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SYNCED);
+  isOk = 1;
+  endcmd:
+  SIM_UnlockCMD(hsim);
+  return isOk;
+}
+#endif /* SIM_EN_FEATURE_NTP */
+
 
 static void GprsSetAPN(SIM_HandlerTypeDef *hsim,
                        const char *APN, const char *user, const char *pass)
@@ -134,6 +211,7 @@ static uint8_t GprsCheck(SIM_HandlerTypeDef *hsim)
   // check response
   if (resp_stat == 1) {
     SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_GPRS_REGISTERED);
+    SIM_BITS_SET(hsim->net.events, SIM_NET_EVENT_ON_GPRS_REGISTERED);
     SIM_Debug("GPRS Registered");
     isOK = 1;
   } else {
