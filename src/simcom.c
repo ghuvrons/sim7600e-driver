@@ -294,7 +294,7 @@ SIM_Datetime SIM_GetTime(SIM_HandlerTypeDef *hsim)
   SIM_LockCMD(hsim);
   SIM_SendCMD(hsim, "AT+CCLK?");
   if (SIM_GetResponse(hsim, "+CCLK", 5, resp, 22, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
-    str2Time(&result, (char*)&resp[1]);
+    str2Time(&result, (char*)&resp[0]);
   }
   SIM_UnlockCMD(hsim);
 
@@ -348,15 +348,20 @@ static void SIM_reset(SIM_HandlerTypeDef *hsim)
 static void str2Time(SIM_Datetime *dt, const char *str)
 {
   uint8_t *dtbytes;
+  int8_t mult = 1;
 
-  dt->year = (uint16_t) atoi(str);
-  dt->year += 2000;
-
-  dtbytes = ((uint8_t*) dt) + 2;
-  while (*str && *str != '+') {
+  str++;
+  dt->year = (uint8_t) atoi(str);
+  dtbytes = ((uint8_t*) dt) + 1;
+  while (*str && *str != '\"') {
     if (*str < '0' || *str > '9') {
+      if (*str == '-') {
+        mult = -1;
+      } else {
+        mult = 1;
+      }
       str++;
-      *dtbytes = (uint8_t) atoi(str);
+      *dtbytes = ((int8_t) atoi(str)) * mult;
       dtbytes++;
     }
     str++;
