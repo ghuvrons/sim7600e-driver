@@ -12,6 +12,9 @@
 #include "simcom/conf.h"
 #include <dma_streamer.h>
 
+#if SIM_EN_FEATURE_GPS
+#include "lwgps/lwgps.h"
+#endif
 
 /**
  * SIM STATUS
@@ -80,6 +83,17 @@ typedef struct {
     uint8_t status;
     uint8_t events;
   } mqtt;
+#endif
+
+#if SIM_EN_FEATURE_GPS
+  struct {
+    uint8_t status;
+    uint8_t events;
+    uint8_t *buffer;
+    uint16_t bufferSize;
+    uint16_t bufferLen;
+    lwgps_t lwgps;
+  } gps;
 #endif
 
   // Buffers

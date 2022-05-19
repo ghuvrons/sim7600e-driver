@@ -53,6 +53,12 @@
 #define SIM_MQTT_UNSET_STATUS(hsim, stat)  SIM_BITS_UNSET((hsim)->mqtt.status, stat)
 #endif
 
+#if SIM_EN_FEATURE_GPS
+#define SIM_GPS_IS_STATUS(hsim, stat)     SIM_BITS_IS_ALL((hsim)->gps.status, stat)
+#define SIM_GPS_SET_STATUS(hsim, stat)    SIM_BITS_SET((hsim)->gps.status, stat)
+#define SIM_GPS_UNSET_STATUS(hsim, stat)  SIM_BITS_UNSET((hsim)->gps.status, stat)
+#endif
+
 uint8_t       SIM_SendCMD(SIM_HandlerTypeDef*, const char *format, ...);
 uint8_t       SIM_SendData(SIM_HandlerTypeDef*, const uint8_t *data, uint16_t size);
 uint8_t       SIM_WaitResponse(SIM_HandlerTypeDef*, const char *respCode, uint16_t rcsize, uint32_t timeout);

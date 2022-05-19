@@ -12,6 +12,7 @@
 #include "include/simcom/debug.h"
 #include "include/simcom/net.h"
 #include "include/simcom/socket.h"
+#include "include/simcom/gps.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -50,7 +51,6 @@ void SIM_Init(SIM_HandlerTypeDef *hsim, STRM_handlerTypeDef *dmaStreamer)
   hsim->initAt = SIM_GetTick();
   hsim->dmaStreamer = dmaStreamer;
   dmaStreamer->config.breakLine = STRM_BREAK_CRLF;
-  return;
 }
 
 
@@ -98,6 +98,10 @@ void SIM_CheckAsyncResponse(SIM_HandlerTypeDef *hsim)
 #ifdef SIM_EN_FEATURE_SOCKET
   else if (SIM_SockCheckAsyncResponse(hsim)) return;
 #endif
+
+#if SIM_EN_FEATURE_GPS
+  else if (SIM_GPS_CheckAsyncResponse(hsim)) return;
+#endif
 }
 
 
@@ -141,6 +145,10 @@ void SIM_HandleEvents(SIM_HandlerTypeDef *hsim)
 
 #ifdef SIM_EN_FEATURE_SOCKET
   SIM_SockHandleEvents(hsim);
+#endif
+
+#if SIM_EN_FEATURE_GPS
+  SIM_GPS_HandleEvents(hsim);
 #endif
 
   if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTING)) {
