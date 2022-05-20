@@ -133,7 +133,12 @@ void SIM_HandleEvents(SIM_HandlerTypeDef *hsim)
       SIM_Debug("Activated.");
     }
   }
-  if (SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE) && !SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED)) {
+  if (SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE) && !SIM_IS_STATUS(hsim, SIM_STATUS_SIM_INSERTED)) {
+    if(!SIM_CheckSIMCard(hsim)) {
+      SIM_Delay(3000);
+    }
+  }
+  if (SIM_IS_STATUS(hsim, SIM_STATUS_SIM_INSERTED) && !SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED)) {
     if(!SIM_ReqisterNetwork(hsim)) {
       SIM_Delay(3000);
     }
@@ -230,9 +235,30 @@ uint8_t SIM_CheckSignal(SIM_HandlerTypeDef *hsim)
 }
 
 
+uint8_t SIM_CheckSIMCard(SIM_HandlerTypeDef *hsim)
+{
+  uint8_t resp[11];
+  uint8_t isOK = 0;
+
+  SIM_LockCMD(hsim);
+
+  memset(resp, 0, 11);
+  SIM_SendCMD(hsim, "AT+CPIN?");
+  if (SIM_GetResponse(hsim, "+CPIN", 5, &resp[0], 10, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
+    // resp_n = (uint8_t) atoi((char*)&resp[0]);
+    if (strcmp((char*) &resp[0], "READY")) {
+      isOK = 1;
+      SIM_SET_STATUS(hsim, SIM_STATUS_SIM_INSERTED);
+    }
+  }
+  SIM_UnlockCMD(hsim);
+  return isOK;
+}
+
+
 uint8_t SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
 {
-  uint8_t resp[16];
+  uint8_t resp[4];
   // uint8_t resp_n = 0;
   uint8_t resp_stat = 0;
   uint8_t resp_mode = 0;
@@ -241,7 +267,7 @@ uint8_t SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
   // send command then get response;
   SIM_LockCMD(hsim);
 
-  memset(resp, 0, 16);
+  memset(resp, 0, 4);
   SIM_SendCMD(hsim, "AT+CREG?");
   if (SIM_GetResponse(hsim, "+CREG", 5, &resp[0], 3, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
     // resp_n = (uint8_t) atoi((char*)&resp[0]);
