@@ -5,8 +5,8 @@
  *      Author: janoko
  */
 
-#ifndef SIM5320E_INC_SIMCOM_CONF_H_
-#define SIM5320E_INC_SIMCOM_CONF_H_
+#ifndef SIM7600E_INC_SIMCOM_CONF_H_
+#define SIM7600E_INC_SIMCOM_CONF_H_
 
 #ifndef SIM_DEBUG
 #define SIM_DEBUG 1
@@ -55,4 +55,4 @@
 #if SIM_EN_FEATURE_GPS
 #endif
 
-#endif /* SIM5320E_SRC_INCLUDE_SIMCOM_CONF_H_ */
+#endif /* SIM7600E_SRC_INCLUDE_SIMCOM_CONF_H_ */

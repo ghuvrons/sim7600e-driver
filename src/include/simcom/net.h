@@ -5,8 +5,8 @@
  *      Author: janoko
  */
 
-#ifndef SIM5320E_INC_SIMNET_H_
-#define SIM5320E_INC_SIMNET_H_
+#ifndef SIM7600E_INC_SIMNET_H_
+#define SIM7600E_INC_SIMNET_H_
 
 #if SIM_EN_FEATURE_NET
 
@@ -34,4 +34,4 @@ uint8_t SIM_SyncNTP(SIM_HandlerTypeDef*);
 #endif /* SIM_EN_FEATURE_NTP */
 
 #endif /* SIM_EN_FEATURE_NET */
-#endif /* SIM5320E_INC_SIMNET_H_ */
+#endif /* SIM7600E_INC_SIMNET_H_ */

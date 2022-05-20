@@ -5,8 +5,8 @@
  *      Author: janoko
  */
 
-#ifndef SIM5320E_INC_SIMSOCK_H_
-#define SIM5320E_INC_SIMSOCK_H_
+#ifndef SIM7600E_INC_SIMSOCK_H_
+#define SIM7600E_INC_SIMSOCK_H_
 
 #include "conf.h"
 #if SIM_EN_FEATURE_SOCKET
@@ -87,4 +87,4 @@ void          SIM_SOCK_Close(SIM_Socket_t*);
 uint16_t      SIM_SOCK_SendData(SIM_Socket_t*, const uint8_t *data, uint16_t length);
 
 #endif /* SIM_EN_FEATURE_SOCKET */
-#endif /* SIM5320E_INC_SIMSOCK_H_ */
+#endif /* SIM7600E_INC_SIMSOCK_H_ */

@@ -6,8 +6,8 @@
  */
 
 
-#ifndef SIM5320E_INC_SIMCOM_DEBUG_H_
-#define SIM5320E_INC_SIMCOM_DEBUG_H_
+#ifndef SIM7600E_INC_SIMCOM_DEBUG_H_
+#define SIM7600E_INC_SIMCOM_DEBUG_H_
 
 #include "conf.h"
 
@@ -23,4 +23,4 @@ void SIM_Println(const char *format, ...);
 #else
 #define SIM_Debug(...) {}
 #endif /* SIM_DEBUG */
-#endif /* SIM5320E_INC_SIMCOM_DEBUG_H_ */
+#endif /* SIM7600E_INC_SIMCOM_DEBUG_H_ */

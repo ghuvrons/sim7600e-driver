@@ -5,8 +5,8 @@
  *      Author: janoko
  */
 
-#ifndef SIM5320E_INC_SIMCOM_UTILS_H_
-#define SIM5320E_INC_SIMCOM_UTILS_H_
+#ifndef SIM7600E_INC_SIMCOM_UTILS_H_
+#define SIM7600E_INC_SIMCOM_UTILS_H_
 
 #include "../simcom.h"
 #include <string.h>
@@ -69,4 +69,4 @@ SIM_Status_t  SIM_GetResponse(SIM_HandlerTypeDef*, const char *respCode, uint16_
 uint16_t      SIM_GetData(SIM_HandlerTypeDef*, uint8_t *respData, uint16_t rdsize, uint32_t timeout);
 const uint8_t *SIM_ParseStr(const uint8_t *separator, uint8_t delimiter, int idx, uint8_t *output);
 
-#endif /* SIM5320E_SRC_INCLUDE_SIMCOM_UTILS_H_ */
+#endif /* SIM7600E_SRC_INCLUDE_SIMCOM_UTILS_H_ */
