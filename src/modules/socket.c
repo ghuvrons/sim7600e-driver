@@ -77,6 +77,19 @@ uint8_t SIM_SockCheckAsyncResponse(SIM_HandlerTypeDef *hsim)
     }
   }
 
+  else if ((isGet = (hsim->respBufferLen >= 14 && hsim->respBufferLen <= 16
+                    && SIM_IsResponse(hsim, "+CIPCLOSE", 9))))
+  {
+    linkNum = (int8_t) atoi((char*)&(hsim->respBuffer[11]));
+    int err =          atoi((char*)&(hsim->respBuffer[12]));
+
+    socket = (SIM_Socket_t*) hsim->net.sockets[linkNum];
+    if (err == 0 && socket != NULL) {
+      SIM_BITS_SET(socket->events, SIM_SOCK_EVENT_ON_CLOSED);
+      SIM_SOCK_SET_STATE(socket, SIM_SOCK_STATE_CLOSED);
+    }
+  }
+
   return isGet;
 }
 
@@ -137,6 +150,7 @@ void SIM_SockHandleEvents(SIM_HandlerTypeDef *hsim)
         SIM_BITS_UNSET(socket->events, SIM_SOCK_EVENT_ON_CLOSED);
         if (!socket->config.autoReconnect)
           hsim->net.sockets[i] = NULL;
+        else socket->tick.reconnDelay = SIM_GetTick();
         if (socket->listeners.onClosed != NULL)
           socket->listeners.onClosed();
       }
@@ -191,10 +205,17 @@ SIM_Status_t SIM_SockOpenTCPIP(SIM_HandlerTypeDef *hsim, int8_t *linkNum, const 
 }
 
 
-void SIM_SockClose(SIM_HandlerTypeDef *hsim, uint8_t linkNum)
+SIM_Status_t SIM_SockClose(SIM_HandlerTypeDef *hsim, uint8_t linkNum)
 {
   SIM_LockCMD(hsim);
+  SIM_SendCMD(hsim, "AT+CIPCLOSE=%d", linkNum);
+  if (SIM_IsResponseOK(hsim)) {
+    SIM_UnlockCMD(hsim);
+    return SIM_OK;
+  }
+
   SIM_UnlockCMD(hsim);
+  return SIM_ERROR;
 }
 
 
@@ -294,7 +315,7 @@ static SIM_Status_t sockOpen(SIM_Socket_t *sock)
 
 void SIM_SOCK_Close(SIM_Socket_t *sock)
 {
-
+  SIM_SockClose(sock->hsim, sock->linkNum);
 }
 
 

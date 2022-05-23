@@ -75,7 +75,7 @@ void    SIM_SockHandleEvents(SIM_HandlerTypeDef*);
 
 // simcom feature net and socket
 SIM_Status_t  SIM_SockOpenTCPIP(SIM_HandlerTypeDef*, int8_t *linkNum, const char *host, uint16_t port);
-void          SIM_SockClose(SIM_HandlerTypeDef*, uint8_t linkNum);
+SIM_Status_t  SIM_SockClose(SIM_HandlerTypeDef*, uint8_t linkNum);
 void          SIM_SockRemoveListener(SIM_HandlerTypeDef*, uint8_t linkNum);
 uint16_t      SIM_SockSendData(SIM_HandlerTypeDef*, int8_t linkNum, const uint8_t *data, uint16_t length);
 

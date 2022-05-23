@@ -247,9 +247,12 @@ uint8_t SIM_CheckSIMCard(SIM_HandlerTypeDef *hsim)
   if (SIM_GetResponse(hsim, "+CPIN", 5, &resp[0], 10, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
     // resp_n = (uint8_t) atoi((char*)&resp[0]);
     if (strcmp((char*) &resp[0], "READY")) {
+      SIM_Debug("SIM Ready.");
       isOK = 1;
       SIM_SET_STATUS(hsim, SIM_STATUS_SIM_INSERTED);
     }
+  } else {
+    SIM_Debug("SIM card error.");
   }
   SIM_UnlockCMD(hsim);
   return isOK;
