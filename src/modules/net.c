@@ -209,10 +209,10 @@ static uint8_t GprsCheck(SIM_HandlerTypeDef *hsim)
   else goto endcmd;
 
   // check response
-  if (resp_stat == 1) {
+  if (resp_stat == 1 || resp_stat == 5) {
     SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_GPRS_REGISTERED);
     SIM_BITS_SET(hsim->net.events, SIM_NET_EVENT_ON_GPRS_REGISTERED);
-    SIM_Debug("GPRS Registered");
+    SIM_Debug("GPRS Registered%s.", (resp_stat == 5)? " (Roaming)":"");
     isOK = 1;
   } else {
     SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_GPRS_REGISTERED);

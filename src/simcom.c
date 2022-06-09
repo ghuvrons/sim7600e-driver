@@ -279,11 +279,14 @@ uint8_t SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
   else goto endcmd;
 
   // check response
-  if (resp_stat == 1) {
+  if (resp_stat == 1 || resp_stat == 5) {
     SIM_SET_STATUS(hsim, SIM_STATUS_REGISTERED);
-    SIM_Debug("Registered");
     SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_REGISTERED);
     isOK = 1;
+    if (resp_stat == 5) {
+      SIM_SET_STATUS(hsim, SIM_STATUS_ROAMING);
+    }
+    SIM_Debug("Registered%s.", (resp_stat==5)? " (Roaming)": "");
   }
   else {
     SIM_UNSET_STATUS(hsim, SIM_STATUS_REGISTERED);
