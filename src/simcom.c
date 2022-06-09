@@ -286,13 +286,13 @@ uint8_t SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
     if (resp_stat == 5) {
       SIM_SET_STATUS(hsim, SIM_STATUS_ROAMING);
     }
-    SIM_Debug("Registered%s.", (resp_stat==5)? " (Roaming)": "");
+    SIM_Debug("Network Registered%s.", (resp_stat==5)? " (Roaming)": "");
   }
   else {
     SIM_UNSET_STATUS(hsim, SIM_STATUS_REGISTERED);
 
     if (resp_stat == 0) {
-      SIM_Debug("Registering");
+      SIM_Debug("Registering network....");
 
       // Select operator automatically
       memset(resp, 0, 16);

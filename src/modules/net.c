@@ -14,9 +14,12 @@
 
 #if SIM_EN_FEATURE_NET
 
-static void GprsSetAPN(SIM_HandlerTypeDef *hsim,
-                       const char *APN, const char *user, const char *pass);
-static uint8_t GprsCheck(SIM_HandlerTypeDef *hsim);
+static void     GprsSetAPN(SIM_HandlerTypeDef *hsim,
+                           const char *APN, const char *user, const char *pass);
+static uint8_t  GprsCheck(SIM_HandlerTypeDef *hsim);
+static void     setNTP(SIM_HandlerTypeDef*, const char *server, int8_t region);
+static uint8_t  syncNTP(SIM_HandlerTypeDef*);
+
 
 uint8_t SIM_NetCheckAsyncResponse(SIM_HandlerTypeDef *hsim)
 {
@@ -44,37 +47,42 @@ uint8_t SIM_NetCheckAsyncResponse(SIM_HandlerTypeDef *hsim)
 void SIM_NetHandleEvents(SIM_HandlerTypeDef *hsim)
 {
   if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_APN_WAS_SET)
-      && SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED)
-  ){
-    GprsSetAPN(hsim, "indosatgprs", "indosat", "indosat");
+      && SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED))
+  {
+    if (hsim->net.APN.APN != NULL) {
+
+    }
+    GprsSetAPN(hsim,
+               hsim->net.APN.APN,
+               hsim->net.APN.user,
+               hsim->net.APN.pass);
   }
 
   if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_GPRS_REGISTERED)
-      && SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED)
-  ){
+      && SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED))
+  {
     GprsCheck(hsim);
   }
 
   if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_OPEN)
       && !SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_OPENING)
-      && SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED)
-  ){
+      && SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED))
+  {
     SIM_NetOpen(hsim);
   }
 
 #if SIM_EN_FEATURE_NTP
   if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET)
-      && SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_GPRS_REGISTERED)
-      && SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_APN_WAS_SET)
-  ){
-    SIM_SetupNTP(hsim, "time.google.com", 28);
+      && SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_GPRS_REGISTERED))
+  {
+    setNTP(hsim, hsim->net.NTP.server, hsim->net.NTP.region);
   }
 
   if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SYNCED)
-      && SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET)
-  ){
-    if (SIM_IsTimeout(hsim->net.ntpSyncTick, SIM_NTP_SYNC_DELAY_TIMEOUT)) {
-      SIM_SyncNTP(hsim);
+      && SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET))
+  {
+    if (SIM_IsTimeout(hsim->net.NTP.syncTick, SIM_NTP_SYNC_DELAY_TIMEOUT)) {
+      syncNTP(hsim);
     }
   }
 #endif /* SIM_EN_FEATURE_NTP */
@@ -82,6 +90,18 @@ void SIM_NetHandleEvents(SIM_HandlerTypeDef *hsim)
   if (SIM_BITS_IS(hsim->net.events, SIM_NET_EVENT_ON_GPRS_REGISTERED)) {
     SIM_BITS_UNSET(hsim->net.events, SIM_NET_EVENT_ON_GPRS_REGISTERED);
   }
+}
+
+
+void SIM_SetAPN(SIM_HandlerTypeDef *hsim,
+                const char *APN, const char *user, const char *pass)
+{
+  hsim->net.APN.APN   = APN;
+  hsim->net.APN.user  = user;
+  hsim->net.APN.pass  = pass;
+
+  SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_GPRS_REGISTERED);
+  SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_APN_WAS_SET);
 }
 
 
@@ -114,56 +134,12 @@ void SIM_NetOpen(SIM_HandlerTypeDef *hsim)
 
 
 #if SIM_EN_FEATURE_NTP
-void SIM_SetupNTP(SIM_HandlerTypeDef *hsim, const char *host, int8_t region)
+void SIM_SetNTP(SIM_HandlerTypeDef *hsim, const char *server, int8_t region)
 {
-  SIM_LockCMD(hsim);
+  hsim->net.NTP.server = server;
+  hsim->net.NTP.region = region;
 
-  SIM_SendCMD(hsim, "AT+CNTP=\"%s\",%d", host, (int) region);
-  if (!SIM_IsResponseOK(hsim)) {
-    goto endcmd;
-  }
-
-  SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET);
-
-  endcmd:
-  SIM_UnlockCMD(hsim);
-  SIM_SyncNTP(hsim);
-}
-
-
-uint8_t SIM_SyncNTP(SIM_HandlerTypeDef *hsim)
-{
-  uint8_t resp[5];
-  uint8_t status;
-  uint8_t isOk = 0;
-
-  hsim->net.ntpSyncTick = SIM_GetTick();
-
-  if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET)) return isOk;
-
-  memset(resp, 0, 5);
-  SIM_LockCMD(hsim);
-
-  SIM_SendCMD(hsim, "AT+CNTP");
-  if (!SIM_IsResponseOK(hsim)) {
-    goto endcmd;
-  }
-
-  if (SIM_GetResponse(hsim, "+CNTP", 5, &resp[0], 5, SIM_GETRESP_ONLY_DATA, 5000) != SIM_OK) {
-    goto endcmd;
-  }
-
-  status = (uint8_t) atoi((char*)&resp[0]);
-  if (status != 0) {
-    SIM_Debug("[ntp] error - %d", status);
-    goto endcmd;
-  }
-
-  SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SYNCED);
-  isOk = 1;
-  endcmd:
-  SIM_UnlockCMD(hsim);
-  return isOk;
+  SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET)
 }
 #endif /* SIM_EN_FEATURE_NTP */
 
@@ -179,12 +155,20 @@ static void GprsSetAPN(SIM_HandlerTypeDef *hsim,
     goto endcmd;
   }
 
-  SIM_SendCMD(hsim, "AT+CGAUTH=1,1,\"%s\",\"%s\"", user, pass);
-  if (!SIM_IsResponseOK(hsim)) {
-    goto endcmd;
+  if (user == NULL) {
+    SIM_SendCMD(hsim, "AT+CGAUTH=0");
+  }
+  else {
+    if (pass == NULL) SIM_SendCMD(hsim, "AT+CGAUTH=1,3,\"%s\"", user);
+    else              SIM_SendCMD(hsim, "AT+CGAUTH=1,3,\"%s\",\"%s\"", user, pass);
+
+    if (!SIM_IsResponseOK(hsim)) {
+      goto endcmd;
+    }
   }
 
   SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_APN_WAS_SET);
+  SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_GPRS_REGISTERED);
   endcmd:
   SIM_UnlockCMD(hsim);
 }
@@ -212,7 +196,7 @@ static uint8_t GprsCheck(SIM_HandlerTypeDef *hsim)
   if (resp_stat == 1 || resp_stat == 5) {
     SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_GPRS_REGISTERED);
     SIM_BITS_SET(hsim->net.events, SIM_NET_EVENT_ON_GPRS_REGISTERED);
-    SIM_Debug("GPRS Registered%s.", (resp_stat == 5)? " (Roaming)":"");
+    SIM_Debug("[GPRS] Registered%s.", (resp_stat == 5)? " (Roaming)":"");
     isOK = 1;
   } else {
     SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_GPRS_REGISTERED);
@@ -223,5 +207,59 @@ static uint8_t GprsCheck(SIM_HandlerTypeDef *hsim)
   return isOK;
 }
 
+#if SIM_EN_FEATURE_NTP
+static void setNTP(SIM_HandlerTypeDef *hsim, const char *server, int8_t region)
+{
+  SIM_LockCMD(hsim);
+
+  SIM_SendCMD(hsim, "AT+CNTP=\"%s\",%d", server, (int) region);
+  if (!SIM_IsResponseOK(hsim)) {
+    goto endcmd;
+  }
+
+  SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET);
+
+  endcmd:
+  SIM_UnlockCMD(hsim);
+  syncNTP(hsim);
+}
+
+
+static uint8_t syncNTP(SIM_HandlerTypeDef *hsim)
+{
+  uint8_t resp[5];
+  uint8_t status;
+  uint8_t isOk = 0;
+
+  hsim->net.NTP.syncTick = SIM_GetTick();
+
+  if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET)) return isOk;
+
+  memset(resp, 0, 5);
+  SIM_LockCMD(hsim);
+
+  SIM_SendCMD(hsim, "AT+CNTP");
+  if (!SIM_IsResponseOK(hsim)) {
+    goto endcmd;
+  }
+
+  if (SIM_GetResponse(hsim, "+CNTP", 5, &resp[0], 5, SIM_GETRESP_ONLY_DATA, 5000) != SIM_OK) {
+    goto endcmd;
+  }
+
+  status = (uint8_t) atoi((char*)&resp[0]);
+  if (status != 0) {
+    SIM_Debug("[NTP] error - %d", status);
+    goto endcmd;
+  }
+  SIM_Debug("[NTP] Synced", status);
+
+  SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SYNCED);
+  isOk = 1;
+  endcmd:
+  SIM_UnlockCMD(hsim);
+  return isOk;
+}
+#endif /* SIM_EN_FEATURE_NTP */
 
 #endif /* SIM_EN_FEATURE_NET */

@@ -64,6 +64,12 @@ typedef struct {
     uint8_t status;
     uint8_t events;
 
+    struct {
+      const char *APN;
+      const char *user;
+      const char *pass;
+    } APN;
+
     void (*onOpening)(void);
     void (*onOpened)(void);
     void (*onOpenError)(void);
@@ -74,7 +80,11 @@ typedef struct {
     #endif
 
     #if SIM_EN_FEATURE_NTP
-    uint32_t ntpSyncTick;
+    struct {
+      const char  *server;
+      int8_t      region;
+      uint32_t    syncTick;
+    } NTP;
     #endif
 
   } net;
@@ -89,12 +99,12 @@ typedef struct {
 
 #if SIM_EN_FEATURE_GPS
   struct {
-    uint8_t status;
-    uint8_t events;
-    uint8_t *buffer;
-    uint16_t bufferSize;
-    uint16_t bufferLen;
-    lwgps_t lwgps;
+    uint8_t   status;
+    uint8_t   events;
+    uint8_t   *buffer;
+    uint16_t  bufferSize;
+    uint16_t  bufferLen;
+    lwgps_t   lwgps;
   } gps;
 #endif
 
@@ -115,7 +125,7 @@ typedef struct {
   uint8_t hour;
   uint8_t minute;
   uint8_t second;
-  int8_t timezone;
+  int8_t  timezone;
 } SIM_Datetime;
 
 

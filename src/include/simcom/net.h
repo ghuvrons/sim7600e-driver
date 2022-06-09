@@ -26,11 +26,12 @@
 
 uint8_t SIM_NetCheckAsyncResponse(SIM_HandlerTypeDef*);
 void    SIM_NetHandleEvents(SIM_HandlerTypeDef*);
+
+void    SIM_SetAPN(SIM_HandlerTypeDef*, const char *APN, const char *user, const char *pass);
 void    SIM_NetOpen(SIM_HandlerTypeDef*);
 
 #if SIM_EN_FEATURE_NTP
-void    SIM_SetupNTP(SIM_HandlerTypeDef*, const char *host, int8_t region);
-uint8_t SIM_SyncNTP(SIM_HandlerTypeDef*);
+void SIM_SetNTP(SIM_HandlerTypeDef*, const char *server, int8_t region);
 #endif /* SIM_EN_FEATURE_NTP */
 
 #endif /* SIM_EN_FEATURE_NET */
