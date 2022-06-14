@@ -36,7 +36,7 @@ uint8_t SIM_SendData(SIM_HandlerTypeDef *hsim, const uint8_t *data, uint16_t siz
   HAL_StatusTypeDef status;
   uint16_t txSize = size;
 
-  while (size) {
+  do {
     if (size > hsim->dmaStreamer->txBufferSize) {
       txSize = hsim->dmaStreamer->txBufferSize;
     } else {
