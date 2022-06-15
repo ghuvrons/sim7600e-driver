@@ -52,6 +52,16 @@ typedef enum {
 } SIM_Status_t;
 
 typedef struct {
+  uint8_t year;
+  uint8_t month;
+  uint8_t day;
+  uint8_t hour;
+  uint8_t minute;
+  uint8_t second;
+  int8_t  timezone;
+} SIM_Datetime;
+
+typedef struct {
   uint8_t             status;
   uint8_t             events;
   uint8_t             errors;
@@ -59,7 +69,7 @@ typedef struct {
   uint32_t            timeout;
   STRM_handlerTypeDef *dmaStreamer;
 
-#if SIM_EN_FEATURE_NET
+  #if SIM_EN_FEATURE_NET
   struct {
     uint8_t status;
     uint8_t events;
@@ -79,25 +89,31 @@ typedef struct {
     void *sockets[SIM_NUM_OF_SOCKET];
     #endif
 
-    #if SIM_EN_FEATURE_NTP
-    struct {
-      const char  *server;
-      int8_t      region;
-      uint32_t    syncTick;
-    } NTP;
-    #endif
-
   } net;
-#endif
 
-#if SIM_EN_FEATURE_NET && SIM_EN_FEATURE_MQTT
+  #if SIM_EN_FEATURE_NTP
+  struct {
+    const char  *server;
+    int8_t      region;
+    uint32_t    syncTick;
+    void (*onSynced)(SIM_Datetime);
+    
+    struct {
+      uint32_t retryInterval;
+      uint32_t resyncInterval;
+    } config;
+  } NTP;
+  #endif /* SIM_EN_FEATURE_NTP */
+  #endif /* SIM_EN_FEATURE_NET */
+
+  #if SIM_EN_FEATURE_NET && SIM_EN_FEATURE_MQTT
   struct {
     uint8_t status;
     uint8_t events;
   } mqtt;
-#endif
+  #endif
 
-#if SIM_EN_FEATURE_GPS
+  #if SIM_EN_FEATURE_GPS
   struct {
     uint8_t   status;
     uint8_t   events;
@@ -106,7 +122,7 @@ typedef struct {
     uint16_t  bufferLen;
     lwgps_t   lwgps;
   } gps;
-#endif
+  #endif
 
   // Buffers
   uint8_t  respBuffer[SIM_RESP_BUFFER_SIZE];
@@ -117,16 +133,6 @@ typedef struct {
 
   uint32_t  initAt;
 } SIM_HandlerTypeDef;
-
-typedef struct {
-  uint8_t year;
-  uint8_t month;
-  uint8_t day;
-  uint8_t hour;
-  uint8_t minute;
-  uint8_t second;
-  int8_t  timezone;
-} SIM_Datetime;
 
 
 void SIM_LockCMD(SIM_HandlerTypeDef*);

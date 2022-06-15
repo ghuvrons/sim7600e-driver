@@ -71,21 +71,25 @@ void SIM_NetHandleEvents(SIM_HandlerTypeDef *hsim)
     SIM_NetOpen(hsim);
   }
 
-#if SIM_EN_FEATURE_NTP
+  #if SIM_EN_FEATURE_NTP
   if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET)
       && SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_GPRS_REGISTERED))
   {
-    setNTP(hsim, hsim->net.NTP.server, hsim->net.NTP.region);
+    setNTP(hsim, hsim->NTP.server, hsim->NTP.region);
   }
 
-  if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SYNCED)
-      && SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET))
-  {
-    if (SIM_IsTimeout(hsim->net.NTP.syncTick, SIM_NTP_SYNC_DELAY_TIMEOUT)) {
-      syncNTP(hsim);
+  if (SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET)) {
+    if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SYNCED)) {
+      if (hsim->NTP.syncTick == 0 || SIM_IsTimeout(hsim->NTP.syncTick, hsim->NTP.config.retryInterval)) {
+        syncNTP(hsim);
+      }
+    } else {
+      if (hsim->NTP.syncTick != 0 && SIM_IsTimeout(hsim->NTP.syncTick, hsim->NTP.config.resyncInterval)) {
+        syncNTP(hsim);
+      }
     }
   }
-#endif /* SIM_EN_FEATURE_NTP */
+  #endif /* SIM_EN_FEATURE_NTP */
 
   if (SIM_BITS_IS(hsim->net.events, SIM_NET_EVENT_ON_GPRS_REGISTERED)) {
     SIM_BITS_UNSET(hsim->net.events, SIM_NET_EVENT_ON_GPRS_REGISTERED);
@@ -136,8 +140,8 @@ void SIM_NetOpen(SIM_HandlerTypeDef *hsim)
 #if SIM_EN_FEATURE_NTP
 void SIM_SetNTP(SIM_HandlerTypeDef *hsim, const char *server, int8_t region)
 {
-  hsim->net.NTP.server = server;
-  hsim->net.NTP.region = region;
+  hsim->NTP.server = server;
+  hsim->NTP.region = region;
 
   SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET)
 }
@@ -231,9 +235,9 @@ static uint8_t syncNTP(SIM_HandlerTypeDef *hsim)
   uint8_t status;
   uint8_t isOk = 0;
 
-  hsim->net.NTP.syncTick = SIM_GetTick();
+  hsim->NTP.syncTick = SIM_GetTick();
 
-  if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET)) return isOk;
+  SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SYNCED);
 
   memset(resp, 0, 5);
   SIM_LockCMD(hsim);
@@ -255,9 +259,15 @@ static uint8_t syncNTP(SIM_HandlerTypeDef *hsim)
   SIM_Debug("[NTP] Synced", status);
 
   SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SYNCED);
+
   isOk = 1;
   endcmd:
   SIM_UnlockCMD(hsim);
+
+  if (isOk && hsim->NTP.onSynced != 0) {
+    hsim->NTP.onSynced(SIM_GetTime(hsim));
+  }
+
   return isOk;
 }
 #endif /* SIM_EN_FEATURE_NTP */
