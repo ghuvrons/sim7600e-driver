@@ -91,17 +91,17 @@ void SIM_CheckAsyncResponse(SIM_HandlerTypeDef *hsim)
     SIM_BITS_SET(hsim->events, SIM_EVENT_ON_STARTED);
   }
 
-#ifdef SIM_EN_FEATURE_NET
+  #if SIM_EN_FEATURE_NET
   else if (SIM_NetCheckAsyncResponse(hsim)) return;
-#endif
+  #endif
 
-#ifdef SIM_EN_FEATURE_SOCKET
+  #if SIM_EN_FEATURE_SOCKET
   else if (SIM_SockCheckAsyncResponse(hsim)) return;
-#endif
+  #endif
 
-#if SIM_EN_FEATURE_GPS
+  #if SIM_EN_FEATURE_GPS
   else if (SIM_GPS_CheckAsyncResponse(hsim)) return;
-#endif
+  #endif
 }
 
 
