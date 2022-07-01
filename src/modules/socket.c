@@ -207,11 +207,27 @@ SIM_Status_t SIM_SockOpenTCPIP(SIM_HandlerTypeDef *hsim, int8_t *linkNum, const 
 
 SIM_Status_t SIM_SockClose(SIM_HandlerTypeDef *hsim, uint8_t linkNum)
 {
+  uint8_t resp[19];
+  SIM_Socket_t *socket;
+
   SIM_LockCMD(hsim);
-  SIM_SendCMD(hsim, "AT+CIPCLOSE=%d", linkNum);
-  if (SIM_IsResponseOK(hsim)) {
-    SIM_UnlockCMD(hsim);
-    return SIM_OK;
+
+  memset(resp, 0, 19);
+  SIM_SendCMD(hsim, "AT+CIPCLOSE?");
+  if (SIM_GetResponse(hsim, "+CIPCLOSE", 9, &resp[0], 19, SIM_GETRESP_WAIT_OK, 1000) == SIM_OK) {
+    if (linkNum < 10 && resp[linkNum*2] == '1') {
+      SIM_SendCMD(hsim, "AT+CIPCLOSE=%d", linkNum);
+      if (SIM_IsResponseOK(hsim)) {
+        SIM_UnlockCMD(hsim);
+        return SIM_OK;
+      }
+    } else {
+      socket = (SIM_Socket_t*) hsim->net.sockets[linkNum];
+      if (socket != NULL) {
+        SIM_BITS_SET(socket->events, SIM_SOCK_EVENT_ON_CLOSED);
+        SIM_SOCK_SET_STATE(socket, SIM_SOCK_STATE_CLOSED);
+      }
+    }
   }
 
   SIM_UnlockCMD(hsim);
