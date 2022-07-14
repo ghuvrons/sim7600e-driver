@@ -378,6 +378,7 @@ static void receiveData(SIM_HandlerTypeDef *hsim)
   char dataLen_str[5];
   uint8_t linkNum;
   uint16_t dataLen;
+  uint16_t writeLen;
   SIM_Socket_t *socket;
 
   memset(linkNum_str, 0, 2);
@@ -391,19 +392,18 @@ static void receiveData(SIM_HandlerTypeDef *hsim)
 
   if (linkNum < SIM_NUM_OF_SOCKET && hsim->net.sockets[linkNum] != NULL) {
     socket = (SIM_Socket_t*) hsim->net.sockets[linkNum];
-    if (dataLen > socket->buffer.size) dataLen = socket->buffer.size;
+    while (dataLen) {
+      if (dataLen > socket->buffer.size)  writeLen = socket->buffer.size;
+      else                                writeLen = dataLen;
 
-    while (dataLen > socket->buffer.size) {
-      dataLen -= socket->buffer.size;
-      STRM_ReadToBuffer(hsim->dmaStreamer, &(socket->buffer), socket->buffer.size, 2000);
+      if (STRM_ReadToBuffer(hsim->dmaStreamer, &(socket->buffer), writeLen, 5000) != HAL_OK)
+        break;
+
+      dataLen -= writeLen;
 
       if (socket->listeners.onReceived != NULL)
         socket->listeners.onReceived(&(socket->buffer));
     }
-    STRM_ReadToBuffer(hsim->dmaStreamer, &(socket->buffer), dataLen, 2000);
-
-    if (socket->listeners.onReceived != NULL)
-      socket->listeners.onReceived(&(socket->buffer));
 
     SIM_BITS_SET(socket->events, SIM_SOCK_EVENT_ON_RECEIVED);
   }
