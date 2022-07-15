@@ -135,6 +135,9 @@ typedef struct {
 } SIM_HandlerTypeDef;
 
 
+extern uint8_t SIM_CmdTmp[64];
+extern uint8_t SIM_RespTmp[64];
+
 void SIM_LockCMD(SIM_HandlerTypeDef*);
 void SIM_UnlockCMD(SIM_HandlerTypeDef*);
 

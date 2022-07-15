@@ -19,6 +19,9 @@
 #include <dma_streamer.h>
 
 
+uint8_t SIM_CmdTmp[64];
+uint8_t SIM_RespTmp[64];
+
 // static function initiation
 static void SIM_reset(SIM_HandlerTypeDef*);
 static void str2Time(SIM_Datetime*, const char*);
@@ -208,8 +211,8 @@ uint8_t SIM_CheckAT(SIM_HandlerTypeDef *hsim)
 uint8_t SIM_CheckSignal(SIM_HandlerTypeDef *hsim)
 {
   uint8_t signal = 0;
-  uint8_t resp[16];
-  char signalStr[3];
+  uint8_t *resp = &SIM_RespTmp[0];
+  char *signalStr = (char*) &SIM_RespTmp[32];
 
   if (!SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE)) return signal;
 
@@ -217,10 +220,12 @@ uint8_t SIM_CheckSignal(SIM_HandlerTypeDef *hsim)
   SIM_LockCMD(hsim);
   SIM_SendCMD(hsim, "AT+CSQ");
 
+  memset(resp, 0, 16);
+
   // do with response
-  if (SIM_GetResponse(hsim, "+CSQ", 4, &resp[0], 16, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
-    SIM_ParseStr(&resp[0], ',', 1, (uint8_t*) &signalStr[0]);
-    signal = (uint8_t) atoi((char*)&resp[0]);
+  if (SIM_GetResponse(hsim, "+CSQ", 4, resp, 16, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
+    SIM_ParseStr(resp, ',', 1, (uint8_t*) signalStr);
+    signal = (uint8_t) atoi((char*)resp);
     hsim->signal = signal;
   }
   SIM_UnlockCMD(hsim);
@@ -237,16 +242,16 @@ uint8_t SIM_CheckSignal(SIM_HandlerTypeDef *hsim)
 
 uint8_t SIM_CheckSIMCard(SIM_HandlerTypeDef *hsim)
 {
-  uint8_t resp[11];
+  uint8_t *resp = &SIM_RespTmp[0];
   uint8_t isOK = 0;
 
   SIM_LockCMD(hsim);
 
   memset(resp, 0, 11);
   SIM_SendCMD(hsim, "AT+CPIN?");
-  if (SIM_GetResponse(hsim, "+CPIN", 5, &resp[0], 10, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
+  if (SIM_GetResponse(hsim, "+CPIN", 5, resp, 10, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
     // resp_n = (uint8_t) atoi((char*)&resp[0]);
-    if (strcmp((char*) &resp[0], "READY")) {
+    if (strcmp((char*) resp, "READY")) {
       SIM_Debug("SIM Ready.");
       isOK = 1;
       SIM_SET_STATUS(hsim, SIM_STATUS_SIM_INSERTED);
@@ -261,7 +266,7 @@ uint8_t SIM_CheckSIMCard(SIM_HandlerTypeDef *hsim)
 
 uint8_t SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
 {
-  uint8_t resp[4];
+  uint8_t *resp = &SIM_RespTmp[0];
   // uint8_t resp_n = 0;
   uint8_t resp_stat = 0;
   uint8_t resp_mode = 0;
@@ -272,9 +277,9 @@ uint8_t SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
 
   memset(resp, 0, 4);
   SIM_SendCMD(hsim, "AT+CREG?");
-  if (SIM_GetResponse(hsim, "+CREG", 5, &resp[0], 3, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
+  if (SIM_GetResponse(hsim, "+CREG", 5, resp, 3, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
     // resp_n = (uint8_t) atoi((char*)&resp[0]);
-    resp_stat = (uint8_t) atoi((char*)&resp[2]);
+    resp_stat = (uint8_t) atoi((char*) resp+2);
   }
   else goto endcmd;
 
@@ -297,8 +302,8 @@ uint8_t SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
       // Select operator automatically
       memset(resp, 0, 16);
       SIM_SendCMD(hsim, "AT+COPS?");
-      if (SIM_GetResponse(hsim, "+COPS", 5, &resp[0], 1, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
-        resp_mode = (uint8_t) atoi((char*)&resp[0]);
+      if (SIM_GetResponse(hsim, "+COPS", 5, resp, 1, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
+        resp_mode = (uint8_t) atoi((char*) resp);
       }
       else goto endcmd;
 
@@ -328,10 +333,12 @@ uint8_t SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
 SIM_Datetime SIM_GetTime(SIM_HandlerTypeDef *hsim)
 {
   SIM_Datetime result = {0};
-  uint8_t resp[22];
+  uint8_t *resp = &SIM_RespTmp[0];
 
   // send command then get response;
   SIM_LockCMD(hsim);
+
+  memset(resp, 0, 22);
   SIM_SendCMD(hsim, "AT+CCLK?");
   if (SIM_GetResponse(hsim, "+CCLK", 5, resp, 22, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
     str2Time(&result, (char*)&resp[0]);

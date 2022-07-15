@@ -180,7 +180,7 @@ static void GprsSetAPN(SIM_HandlerTypeDef *hsim,
 
 static uint8_t GprsCheck(SIM_HandlerTypeDef *hsim)
 {
-  uint8_t resp[16];
+  uint8_t *resp = &SIM_RespTmp[0];
   // uint8_t resp_n = 0;
   uint8_t resp_stat = 0;
   uint8_t isOK = 0;
@@ -190,9 +190,9 @@ static uint8_t GprsCheck(SIM_HandlerTypeDef *hsim)
 
   memset(resp, 0, 16);
   SIM_SendCMD(hsim, "AT+CGREG?");
-  if (SIM_GetResponse(hsim, "+CGREG", 5, &resp[0], 3, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
+  if (SIM_GetResponse(hsim, "+CGREG", 5, resp, 3, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
     // resp_n = (uint8_t) atoi((char*)&resp[0]);
-    resp_stat = (uint8_t) atoi((char*)&resp[2]);
+    resp_stat = (uint8_t) atoi((char*) resp+2);
   }
   else goto endcmd;
 
@@ -231,7 +231,7 @@ static void setNTP(SIM_HandlerTypeDef *hsim, const char *server, int8_t region)
 
 static uint8_t syncNTP(SIM_HandlerTypeDef *hsim)
 {
-  uint8_t resp[5];
+  uint8_t *resp = &SIM_RespTmp[0];
   uint8_t status;
   uint8_t isOk = 0;
 
@@ -247,11 +247,11 @@ static uint8_t syncNTP(SIM_HandlerTypeDef *hsim)
     goto endcmd;
   }
 
-  if (SIM_GetResponse(hsim, "+CNTP", 5, &resp[0], 5, SIM_GETRESP_ONLY_DATA, 5000) != SIM_OK) {
+  if (SIM_GetResponse(hsim, "+CNTP", 5, resp, 5, SIM_GETRESP_ONLY_DATA, 5000) != SIM_OK) {
     goto endcmd;
   }
 
-  status = (uint8_t) atoi((char*)&resp[0]);
+  status = (uint8_t) atoi((char*) resp);
   if (status != 0) {
     SIM_Debug("[NTP] error - %d", status);
     goto endcmd;

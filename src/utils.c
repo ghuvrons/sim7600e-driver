@@ -57,7 +57,9 @@ uint8_t SIM_WaitResponse( SIM_HandlerTypeDef *hsim,
                           uint32_t timeout)
 {
   uint32_t tickstart = STRM_GetTick();
+  if (rcsize > SIM_RESP_BUFFER_SIZE) rcsize = SIM_RESP_BUFFER_SIZE;
   if (timeout == 0) timeout = hsim->timeout;
+
   while (1) {
     if((STRM_GetTick() - tickstart) >= timeout) break;
     hsim->respBufferLen = STRM_Read(hsim->dmaStreamer, hsim->respBuffer, rcsize, timeout);

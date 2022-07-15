@@ -207,15 +207,15 @@ SIM_Status_t SIM_SockOpenTCPIP(SIM_HandlerTypeDef *hsim, int8_t *linkNum, const 
 
 SIM_Status_t SIM_SockClose(SIM_HandlerTypeDef *hsim, uint8_t linkNum)
 {
-  uint8_t resp[19];
+  uint8_t *resp = &SIM_RespTmp[0];
   SIM_Socket_t *socket;
 
   SIM_LockCMD(hsim);
 
-  memset(resp, 0, 19);
+  memset(resp, 0, 20);
   SIM_SendCMD(hsim, "AT+CIPCLOSE?");
-  if (SIM_GetResponse(hsim, "+CIPCLOSE", 9, &resp[0], 19, SIM_GETRESP_WAIT_OK, 1000) == SIM_OK) {
-    if (linkNum < 10 && resp[linkNum*2] == '1') {
+  if (SIM_GetResponse(hsim, "+CIPCLOSE", 9, resp, 19, SIM_GETRESP_WAIT_OK, 1000) == SIM_OK) {
+    if (linkNum < 10 && *(resp+(linkNum*2)) == '1') {
       SIM_SendCMD(hsim, "AT+CIPCLOSE=%d", linkNum);
       if (SIM_IsResponseOK(hsim)) {
         SIM_UnlockCMD(hsim);
@@ -237,14 +237,14 @@ SIM_Status_t SIM_SockClose(SIM_HandlerTypeDef *hsim, uint8_t linkNum)
 
 uint16_t SIM_SockSendData(SIM_HandlerTypeDef *hsim, int8_t linkNum, const uint8_t *data, uint16_t length)
 {
-  char cmd[20];
-  uint8_t resp = 0;
   uint16_t sendLen = 0;
+  uint8_t resp = 0;
+  uint8_t *cmdTmp = &SIM_CmdTmp[0];
 
   SIM_LockCMD(hsim);
 
-  sprintf(cmd, "AT+CIPSEND=%d,%d\r", linkNum, length);
-  SIM_SendData(hsim, (uint8_t*)cmd, strlen(cmd));
+  sprintf((char*) cmdTmp, "AT+CIPSEND=%d,%d\r", linkNum, length);
+  SIM_SendData(hsim, cmdTmp, strlen((char*)cmdTmp));
   if (!SIM_WaitResponse(hsim, ">", 1, 3000))
     goto endcmd;
   if (!SIM_SendData(hsim, data, length))
@@ -344,22 +344,22 @@ uint16_t SIM_SOCK_SendData(SIM_Socket_t *sock, const uint8_t *data, uint16_t len
 
 static void onNetOpen(SIM_HandlerTypeDef *hsim)
 {
-  uint8_t resp[19];
-  uint8_t closing_resp[3];
+  uint8_t *resp = &SIM_RespTmp[0];
+  uint8_t *closing_resp = &SIM_RespTmp[32];
 
   SIM_LockCMD(hsim);
   // TCP/IP Config
   SIM_SendCMD(hsim, "AT+CIPCCFG=10,0,0,1,1,0,10000");
   if (SIM_IsResponseOK(hsim)){}
 
-  memset(resp, 0, 19);
+  memset(resp, 0, 20);
   SIM_SendCMD(hsim, "AT+CIPCLOSE?");
-  if (SIM_GetResponse(hsim, "+CIPCLOSE", 9, &resp[0], 19, SIM_GETRESP_WAIT_OK, 1000) == SIM_OK) {
+  if (SIM_GetResponse(hsim, "+CIPCLOSE", 9, resp, 19, SIM_GETRESP_WAIT_OK, 1000) == SIM_OK) {
     for (uint8_t i = 0; i < 10; i++) {
-      if (resp[i*2] == '1') {
+      if (*(resp + (i*2)) == '1') {
         memset(closing_resp, 0, 3);
         SIM_SendCMD(hsim, "AT+CIPCLOSE=%d", i);
-        if (SIM_GetResponse(hsim, "+CIPCLOSE", 9, &closing_resp[0], 3, SIM_GETRESP_WAIT_OK, 1000) == SIM_OK) {
+        if (SIM_GetResponse(hsim, "+CIPCLOSE", 9, closing_resp, 3, SIM_GETRESP_WAIT_OK, 1000) == SIM_OK) {
 
         }
       }
@@ -374,21 +374,21 @@ static void onNetOpen(SIM_HandlerTypeDef *hsim)
 static void receiveData(SIM_HandlerTypeDef *hsim)
 {
   const uint8_t *nextBuf = NULL;
-  char linkNum_str[2];
-  char dataLen_str[5];
+  uint8_t *linkNum_str = &SIM_RespTmp[0];
+  uint8_t *dataLen_str = &SIM_RespTmp[8];
   uint8_t linkNum;
   uint16_t dataLen;
   uint16_t writeLen;
   SIM_Socket_t *socket;
 
   memset(linkNum_str, 0, 2);
-  memset(dataLen_str, 0, 5);
+  memset(dataLen_str, 0, 6);
 
   // skip string "+RECEIVE" and read next data
-  nextBuf = SIM_ParseStr(&hsim->respBuffer[9], ',', 0, (uint8_t*) linkNum_str);
-  SIM_ParseStr(nextBuf, ',', 0, (uint8_t*) dataLen_str);
-  linkNum = (uint8_t) atoi(linkNum_str);
-  dataLen = (uint16_t) atoi(dataLen_str);
+  nextBuf = SIM_ParseStr(&hsim->respBuffer[9], ',', 0, linkNum_str);
+  SIM_ParseStr(nextBuf, ',', 0, dataLen_str);
+  linkNum = (uint8_t) atoi((char*) linkNum_str);
+  dataLen = (uint16_t) atoi((char*) dataLen_str);
 
   if (linkNum < SIM_NUM_OF_SOCKET && hsim->net.sockets[linkNum] != NULL) {
     socket = (SIM_Socket_t*) hsim->net.sockets[linkNum];
@@ -396,7 +396,7 @@ static void receiveData(SIM_HandlerTypeDef *hsim)
       if (dataLen > socket->buffer.size)  writeLen = socket->buffer.size;
       else                                writeLen = dataLen;
 
-      if (STRM_ReadToBuffer(hsim->dmaStreamer, &(socket->buffer), writeLen, 5000) != HAL_OK)
+      if (STRM_ReadToBuffer(hsim->dmaStreamer, &socket->buffer, writeLen, 5000) != HAL_OK)
         break;
 
       dataLen -= writeLen;
