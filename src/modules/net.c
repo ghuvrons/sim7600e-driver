@@ -239,9 +239,9 @@ static uint8_t syncNTP(SIM_HandlerTypeDef *hsim)
 
   SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SYNCED);
 
-  memset(resp, 0, 5);
   SIM_LockCMD(hsim);
 
+  memset(resp, 0, 5);
   SIM_SendCMD(hsim, "AT+CNTP");
   if (!SIM_IsResponseOK(hsim)) {
     goto endcmd;
