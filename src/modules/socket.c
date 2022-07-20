@@ -19,7 +19,7 @@
 #if SIM_EN_FEATURE_SOCKET
 
 // event handlers
-static void onNetOpen(SIM_HandlerTypeDef*);
+static void resetOpenedSocket(SIM_HandlerTypeDef*);
 static void receiveData(SIM_HandlerTypeDef*);
 static SIM_Status_t sockOpen(SIM_Socket_t*);
 
@@ -43,15 +43,10 @@ uint8_t SIM_SockCheckAsyncResponse(SIM_HandlerTypeDef *hsim)
     receiveData(hsim);
   }
 
-  else if ((isGet = (
-              SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_SOCK_OPENING)
-              && hsim->respBufferLen >= 13
-              && SIM_IsResponse(hsim, "+CIPOPEN", 8)))
-  ){
+  else if ((isGet = (hsim->respBufferLen >= 13 && SIM_IsResponse(hsim, "+CIPOPEN", 8))))
+  {
     linkNum   = (int8_t) atoi((char*)&(hsim->respBuffer[10]));
     int err   =          atoi((char*)&(hsim->respBuffer[12]));
-
-    SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_SOCK_OPENING);
 
     socket = (SIM_Socket_t*) hsim->net.sockets[linkNum];
     if (socket != NULL) {
@@ -99,34 +94,6 @@ void SIM_SockHandleEvents(SIM_HandlerTypeDef *hsim)
   int16_t i;
   SIM_Socket_t *socket;
 
-  if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTED)) {
-    for (i = 0; i < SIM_NUM_OF_SOCKET; i++) {
-      if ((socket = hsim->net.sockets[i]) != NULL)
-      {
-        if (SIM_SOCK_IS_STATE(socket, SIM_SOCK_STATE_OPENING)) {
-          if (socket->config.autoReconnect) {
-            socket->tick.reconnDelay = SIM_GetTick();
-            if (socket->listeners.onConnectError != NULL)
-              socket->listeners.onConnectError();
-          }
-        }
-
-        else if (SIM_SOCK_IS_STATE(socket, SIM_SOCK_STATE_OPEN)) {
-          if (!socket->config.autoReconnect)
-            hsim->net.sockets[i] = NULL;
-          if (socket->listeners.onClosed != NULL)
-            socket->listeners.onClosed();
-        }
-        SIM_SOCK_SET_STATE(socket, 0);
-      }
-    }
-  }
-
-  if (SIM_BITS_IS(hsim->net.events, SIM_NET_EVENT_ON_OPENED)) {
-    SIM_Debug("Data online");
-    onNetOpen(hsim);
-  }
-
   // Socket Event Handler
   for (i = 0; SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_OPEN) && i < SIM_NUM_OF_SOCKET; i++)
   {
@@ -172,6 +139,38 @@ void SIM_SockHandleEvents(SIM_HandlerTypeDef *hsim)
 }
 
 
+void SIM_SockOnStarted(SIM_HandlerTypeDef *hsim)
+{
+  SIM_Socket_t *socket;
+
+  for (uint8_t i = 0; i < SIM_NUM_OF_SOCKET; i++) {
+    if ((socket = hsim->net.sockets[i]) != NULL) {
+      if (SIM_SOCK_IS_STATE(socket, SIM_SOCK_STATE_OPENING)) {
+        if (socket->config.autoReconnect) {
+          socket->tick.reconnDelay = SIM_GetTick();
+          if (socket->listeners.onConnectError != NULL)
+            socket->listeners.onConnectError();
+        }
+      }
+
+      else if (SIM_SOCK_IS_STATE(socket, SIM_SOCK_STATE_OPEN)) {
+        if (!socket->config.autoReconnect)
+          hsim->net.sockets[i] = NULL;
+        if (socket->listeners.onClosed != NULL)
+          socket->listeners.onClosed();
+      }
+      SIM_SOCK_SET_STATE(socket, 0);
+    }
+  }
+}
+
+
+void SIM_SockOnNetOpened(SIM_HandlerTypeDef *hsim)
+{
+  resetOpenedSocket(hsim);
+}
+
+
 /*
  * return linknum if connected
  * return -1 if not connected
@@ -190,8 +189,6 @@ SIM_Status_t SIM_SockOpenTCPIP(SIM_HandlerTypeDef *hsim, int8_t *linkNum, const 
 
   SIM_LockCMD(hsim);
   SIM_SendCMD(hsim, "AT+CIPOPEN=%d,\"TCP\",\"%s\",%d", *linkNum, host, port);
-
-  SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_SOCK_OPENING);
   SIM_SOCK_SET_STATE((SIM_Socket_t*)hsim->net.sockets[*linkNum], SIM_SOCK_STATE_OPENING);
 
   if (SIM_IsResponseOK(hsim)) {
@@ -342,7 +339,7 @@ uint16_t SIM_SOCK_SendData(SIM_Socket_t *sock, const uint8_t *data, uint16_t len
 }
 
 
-static void onNetOpen(SIM_HandlerTypeDef *hsim)
+static void resetOpenedSocket(SIM_HandlerTypeDef *hsim)
 {
   uint8_t *resp = &SIM_RespTmp[0];
   uint8_t *closing_resp = &SIM_RespTmp[32];

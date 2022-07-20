@@ -73,6 +73,10 @@ typedef struct {
 uint8_t SIM_SockCheckAsyncResponse(SIM_HandlerTypeDef*);
 void    SIM_SockHandleEvents(SIM_HandlerTypeDef*);
 
+// glabal event handler
+void    SIM_SockOnStarted(SIM_HandlerTypeDef*);
+void    SIM_SockOnNetOpened(SIM_HandlerTypeDef*);
+
 // simcom feature net and socket
 SIM_Status_t  SIM_SockOpenTCPIP(SIM_HandlerTypeDef*, int8_t *linkNum, const char *host, uint16_t port);
 SIM_Status_t  SIM_SockClose(SIM_HandlerTypeDef*, uint8_t linkNum);

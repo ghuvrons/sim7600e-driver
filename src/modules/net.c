@@ -8,6 +8,7 @@
 
 #include "../include/simcom.h"
 #include "../include/simcom/net.h"
+#include "../include/simcom/socket.h"
 #include "../include/simcom/utils.h"
 #include "../include/simcom/debug.h"
 #include <stdlib.h>
@@ -30,6 +31,9 @@ uint8_t SIM_NetCheckAsyncResponse(SIM_HandlerTypeDef *hsim)
     if (hsim->respBuffer[10] == '0') {
       SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_OPEN);
       SIM_BITS_SET(hsim->net.events, SIM_NET_EVENT_ON_OPENED);
+    } else {
+      SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_OPEN);
+      SIM_BITS_SET(hsim->net.events, SIM_NET_EVENT_ON_CLOSED);
     }
   }
 
@@ -50,12 +54,11 @@ void SIM_NetHandleEvents(SIM_HandlerTypeDef *hsim)
       && SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED))
   {
     if (hsim->net.APN.APN != NULL) {
-
+      GprsSetAPN(hsim,
+                 hsim->net.APN.APN,
+                 hsim->net.APN.user,
+                 hsim->net.APN.pass);
     }
-    GprsSetAPN(hsim,
-               hsim->net.APN.APN,
-               hsim->net.APN.user,
-               hsim->net.APN.pass);
   }
 
   if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_GPRS_REGISTERED)
@@ -79,7 +82,9 @@ void SIM_NetHandleEvents(SIM_HandlerTypeDef *hsim)
   }
 
   if (SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET)) {
-    if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SYNCED)) {
+    if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SYNCED)
+        && SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_OPEN))
+    {
       if (hsim->NTP.syncTick == 0 || SIM_IsTimeout(hsim->NTP.syncTick, hsim->NTP.config.retryInterval)) {
         syncNTP(hsim);
       }
@@ -93,6 +98,18 @@ void SIM_NetHandleEvents(SIM_HandlerTypeDef *hsim)
 
   if (SIM_BITS_IS(hsim->net.events, SIM_NET_EVENT_ON_GPRS_REGISTERED)) {
     SIM_BITS_UNSET(hsim->net.events, SIM_NET_EVENT_ON_GPRS_REGISTERED);
+    SIM_Debug("[GPRS] Registered%s.", (SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_GPRS_ROAMING))? " (Roaming)":"");
+  }
+
+  if (SIM_BITS_IS(hsim->net.events, SIM_NET_EVENT_ON_OPENED)) {
+    SIM_BITS_UNSET(hsim->net.events, SIM_NET_EVENT_ON_OPENED);
+    SIM_Debug("Data online");
+    SIM_SockOnNetOpened(hsim);
+  }
+
+  if (SIM_BITS_IS(hsim->net.events, SIM_NET_EVENT_ON_CLOSED)) {
+    SIM_BITS_UNSET(hsim->net.events, SIM_NET_EVENT_ON_CLOSED);
+    SIM_Debug("Data offline");
   }
 }
 
@@ -101,8 +118,13 @@ void SIM_SetAPN(SIM_HandlerTypeDef *hsim,
                 const char *APN, const char *user, const char *pass)
 {
   hsim->net.APN.APN   = APN;
-  hsim->net.APN.user  = user;
-  hsim->net.APN.pass  = pass;
+  hsim->net.APN.user  = 0;
+  hsim->net.APN.pass  = 0;
+
+  if (strlen(user) > 0)
+    hsim->net.APN.user = user;
+  if (strlen(pass) > 0)
+    hsim->net.APN.pass = pass;
 
   SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_GPRS_REGISTERED);
   SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_APN_WAS_SET);
@@ -116,6 +138,8 @@ void SIM_NetOpen(SIM_HandlerTypeDef *hsim)
   if (SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_OPENING)) return;
 
   SIM_LockCMD(hsim);
+
+  SIM_Debug("getting online data");
 
   // check net state
   SIM_SendCMD(hsim, "AT+NETOPEN?");
@@ -200,7 +224,9 @@ static uint8_t GprsCheck(SIM_HandlerTypeDef *hsim)
   if (resp_stat == 1 || resp_stat == 5) {
     SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_GPRS_REGISTERED);
     SIM_BITS_SET(hsim->net.events, SIM_NET_EVENT_ON_GPRS_REGISTERED);
-    SIM_Debug("[GPRS] Registered%s.", (resp_stat == 5)? " (Roaming)":"");
+    if (resp_stat == 5) {
+      SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_GPRS_ROAMING);
+    }
     isOK = 1;
   } else {
     SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_GPRS_REGISTERED);

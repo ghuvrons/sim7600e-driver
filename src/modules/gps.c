@@ -15,7 +15,6 @@
 
 #if SIM_EN_FEATURE_GPS
 
-static void gpsWriteBuffer(SIM_HandlerTypeDef*, uint8_t *data, uint16_t len);
 static void gpsProcessBuffer(SIM_HandlerTypeDef*);
 
 
@@ -25,7 +24,7 @@ uint8_t SIM_GPS_CheckAsyncResponse(SIM_HandlerTypeDef *hsim)
 
   if ((isGet = (hsim->respBufferLen >= 6 && SIM_IsResponse(hsim, "$", 1)))) {
     SIM_BITS_SET(hsim->gps.events, SIM_GPS_STATE_NMEA_AVAILABLE);
-    gpsWriteBuffer(hsim, hsim->respBuffer, hsim->respBufferLen);
+    STRM_Buffer_Write(&hsim->gps.buffer, hsim->respBuffer, hsim->respBufferLen);
   }
 
   return isGet;
@@ -56,8 +55,9 @@ void SIM_GPS_HandleEvents(SIM_HandlerTypeDef *hsim)
 
 void SIM_GPS_Init(SIM_HandlerTypeDef *hsim, uint8_t *buffer, uint16_t bufferSize)
 {
-  hsim->gps.buffer = buffer;
-  hsim->gps.bufferSize = bufferSize;
+  memset(&hsim->gps.buffer, 0, sizeof(STRM_Buffer_t));
+  hsim->gps.buffer.buffer = buffer;
+  hsim->gps.buffer.size = bufferSize;
   lwgps_init(&hsim->gps.lwgps);
 }
 
@@ -277,26 +277,14 @@ SIM_Status_t SIM_GPS_SetAutoSwitchMode(SIM_HandlerTypeDef *hsim, uint8_t isAuto)
 }
 
 
-static void gpsWriteBuffer(SIM_HandlerTypeDef *hsim, uint8_t *data, uint16_t len)
-{
-  if (hsim->gps.buffer == NULL) return;
-
-  while (len){
-    if (hsim->gps.bufferLen >= hsim->gps.bufferSize) break;
-    *(hsim->gps.buffer+hsim->gps.bufferLen) = *data;
-    hsim->gps.bufferLen++;
-    data++;
-    len--;
-  }
-}
-
-
 static void gpsProcessBuffer(SIM_HandlerTypeDef *hsim)
 {
-  if (hsim->gps.buffer == NULL) return;
+  uint16_t readLen = 0;
 
-  lwgps_process(&hsim->gps.lwgps, hsim->gps.buffer, hsim->gps.bufferLen);
-  hsim->gps.bufferLen = 0;
+  while (STRM_Buffer_IsAvailable(&hsim->gps.buffer)) {
+    readLen = STRM_Buffer_Read(&hsim->gps.buffer, &hsim->gps.readBuffer[0], SIM_GPS_TMP_BUF_SIZE);
+    lwgps_process(&hsim->gps.lwgps, &hsim->gps.readBuffer[0], readLen);
+  }
 }
 
 #endif /* SIM_EN_FEATURE_GPS */

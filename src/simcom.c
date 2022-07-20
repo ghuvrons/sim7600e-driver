@@ -123,12 +123,20 @@ void SIM_HandleEvents(SIM_HandlerTypeDef *hsim)
   }
 
   if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTING)) {
+    SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_STARTING);
     SIM_Debug("Starting...");
     SIM_reset(hsim);
   }
   if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTED)) {
+    SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_STARTED);
     SIM_Debug("Started.");
+    SIM_SockOnStarted(hsim);
   }
+  if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_REGISTERED)) {
+    SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_REGISTERED);
+    SIM_Debug("Network Registered%s.", (SIM_IS_STATUS(hsim, SIM_STATUS_ROAMING))? " (Roaming)": "");
+  }
+  
   if (SIM_IS_STATUS(hsim, SIM_STATUS_START) && !SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE)) {
     SIM_Debug("Activating...");
     SIM_Echo(hsim, 0);
@@ -159,18 +167,6 @@ void SIM_HandleEvents(SIM_HandlerTypeDef *hsim)
   SIM_GPS_HandleEvents(hsim);
 #endif
 
-  if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTING)) {
-    SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_STARTING);
-  }
-  if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_STARTED)) {
-    SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_STARTED);
-  }
-  if (SIM_BITS_IS(hsim->events, SIM_EVENT_ON_REGISTERED)) {
-    SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_REGISTERED);
-  }
-  if (SIM_BITS_IS(hsim->net.events, SIM_NET_EVENT_ON_OPENED)) {
-    SIM_BITS_UNSET(hsim->net.events, SIM_NET_EVENT_ON_OPENED);
-  }
 }
 
 
@@ -286,12 +282,11 @@ uint8_t SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
   // check response
   if (resp_stat == 1 || resp_stat == 5) {
     SIM_SET_STATUS(hsim, SIM_STATUS_REGISTERED);
-    SIM_BITS_UNSET(hsim->events, SIM_EVENT_ON_REGISTERED);
+    SIM_BITS_SET(hsim->events, SIM_EVENT_ON_REGISTERED);
     isOK = 1;
     if (resp_stat == 5) {
       SIM_SET_STATUS(hsim, SIM_STATUS_ROAMING);
     }
-    SIM_Debug("Network Registered%s.", (resp_stat==5)? " (Roaming)": "");
   }
   else {
     SIM_UNSET_STATUS(hsim, SIM_STATUS_REGISTERED);
