@@ -24,7 +24,7 @@ uint8_t SIM_GPS_CheckAsyncResponse(SIM_HandlerTypeDef *hsim)
 
   if ((isGet = (hsim->respBufferLen >= 6 && SIM_IsResponse(hsim, "$", 1)))) {
     SIM_BITS_SET(hsim->gps.events, SIM_GPS_STATE_NMEA_AVAILABLE);
-    STRM_Buffer_Write(&hsim->gps.buffer, hsim->respBuffer, hsim->respBufferLen);
+    Buffer_Write(&hsim->gps.buffer, hsim->respBuffer, hsim->respBufferLen);
   }
 
   return isGet;
@@ -55,7 +55,7 @@ void SIM_GPS_HandleEvents(SIM_HandlerTypeDef *hsim)
 
 void SIM_GPS_Init(SIM_HandlerTypeDef *hsim, uint8_t *buffer, uint16_t bufferSize)
 {
-  memset(&hsim->gps.buffer, 0, sizeof(STRM_Buffer_t));
+  memset(&hsim->gps.buffer, 0, sizeof(Buffer_t));
   hsim->gps.buffer.buffer = buffer;
   hsim->gps.buffer.size = bufferSize;
   lwgps_init(&hsim->gps.lwgps);
@@ -281,8 +281,8 @@ static void gpsProcessBuffer(SIM_HandlerTypeDef *hsim)
 {
   uint16_t readLen = 0;
 
-  while (STRM_Buffer_IsAvailable(&hsim->gps.buffer)) {
-    readLen = STRM_Buffer_Read(&hsim->gps.buffer, &hsim->gps.readBuffer[0], SIM_GPS_TMP_BUF_SIZE);
+  while (Buffer_IsAvailable(&hsim->gps.buffer)) {
+    readLen = Buffer_Read(&hsim->gps.buffer, &hsim->gps.readBuffer[0], SIM_GPS_TMP_BUF_SIZE);
     lwgps_process(&hsim->gps.lwgps, &hsim->gps.readBuffer[0], readLen);
   }
 }

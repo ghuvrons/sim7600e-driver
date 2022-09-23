@@ -115,11 +115,11 @@ typedef struct {
 
   #if SIM_EN_FEATURE_GPS
   struct {
-    uint8_t         status;
-    uint8_t         events;
-    STRM_Buffer_t   buffer;
-    uint8_t         readBuffer[SIM_GPS_TMP_BUF_SIZE];
-    lwgps_t         lwgps;
+    uint8_t   status;
+    uint8_t   events;
+    Buffer_t  buffer;
+    uint8_t   readBuffer[SIM_GPS_TMP_BUF_SIZE];
+    lwgps_t   lwgps;
   } gps;
   #endif
 

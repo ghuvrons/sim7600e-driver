@@ -63,11 +63,11 @@ typedef struct {
     void (*onConnected)(void);
     void (*onConnectError)(void);
     void (*onClosed)(void);
-    void (*onReceived)(STRM_Buffer_t*);
+    void (*onReceived)(Buffer_t*);
   } listeners;
 
   // buffer
-  STRM_Buffer_t buffer;
+  Buffer_t buffer;
 } SIM_Socket_t;
 
 uint8_t SIM_SockCheckAsyncResponse(SIM_HandlerTypeDef*);
