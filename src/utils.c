@@ -33,8 +33,8 @@ uint8_t SIM_SendCMD(SIM_HandlerTypeDef *hsim, const char *format, ...)
 
 uint8_t SIM_SendData(SIM_HandlerTypeDef *hsim, const uint8_t *data, uint16_t size)
 {
-  HAL_StatusTypeDef status;
   uint16_t txSize = size;
+  uint16_t sentSize;
 
   do {
     if (size > hsim->dmaStreamer->txBufferSize) {
@@ -42,12 +42,13 @@ uint8_t SIM_SendData(SIM_HandlerTypeDef *hsim, const uint8_t *data, uint16_t siz
     } else {
       txSize = size;
     }
-    status = STRM_Write(hsim->dmaStreamer, (uint8_t*)data, txSize, STRM_BREAK_NONE);
-    data += txSize;
-    size -= txSize;
-  } while (size && status == HAL_OK);
+    sentSize = STRM_Write(hsim->dmaStreamer, (uint8_t*)data, txSize, STRM_BREAK_NONE);
+    if (sentSize == 0) return 0;
+    data += sentSize;
+    size -= sentSize;
+  } while (size);
 
-  return (status == HAL_OK);
+  return 1;
 }
 
 
