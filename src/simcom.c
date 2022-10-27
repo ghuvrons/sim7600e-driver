@@ -57,6 +57,8 @@ SIM_Status_t SIM_Init(SIM_HandlerTypeDef *hsim)
     hsim->mutexUnlock = mutexUnlock;
 
   hsim->initAt = hsim->getTick();
+
+  return SIM_OK;
 }
 
 

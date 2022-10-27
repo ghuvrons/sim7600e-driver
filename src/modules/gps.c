@@ -101,12 +101,12 @@ SIM_Status_t SIM_GPS_Activate(SIM_HandlerTypeDef *hsim, SIM_GPS_Mode_t mode)
 {
   SIM_Status_t status = SIM_ERROR;
 
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
   SIM_SendCMD(hsim, "AT+CGPS=1,%d", mode);
   if (SIM_IsResponseOK(hsim))
     status = SIM_OK;
 
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
   return status;
 
   return SIM_OK;
@@ -118,7 +118,7 @@ SIM_Status_t SIM_GPS_Deactivate(SIM_HandlerTypeDef *hsim)
   SIM_Status_t status = SIM_ERROR;
   uint8_t resp;
 
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
 
   SIM_SendCMD(hsim, "AT+CGPS?");
   if (SIM_GetResponse(hsim, "+CGPS", 5, &resp, 1, SIM_GETRESP_WAIT_OK, 1000) == SIM_OK) {
@@ -133,7 +133,7 @@ SIM_Status_t SIM_GPS_Deactivate(SIM_HandlerTypeDef *hsim)
   status = SIM_OK;
   SIM_GPS_UNSET_STATUS(hsim, SIM_GPS_STATUS_ACTIVE);
   endcmd:
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
   return status;
 }
 
@@ -142,12 +142,12 @@ SIM_Status_t SIM_GPS_SetAccuracy(SIM_HandlerTypeDef *hsim, uint16_t meter)
 {
   SIM_Status_t status = SIM_ERROR;
 
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
   SIM_SendCMD(hsim, "AT+CGPSHOR=%d", (int) meter);
   if (SIM_IsResponseOK(hsim))
     status = SIM_OK;
 
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
   return status;
 }
 
@@ -155,12 +155,12 @@ SIM_Status_t SIM_GPS_SetOutputRateNMEA(SIM_HandlerTypeDef *hsim, SIM_GPS_NMEARat
 {
   SIM_Status_t status = SIM_ERROR;
 
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
   SIM_SendCMD(hsim, "AT+CGPSNMEARATE=%d", rate);
   if (SIM_IsResponseOK(hsim))
     status = SIM_OK;
 
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
   return status;
 }
 
@@ -169,12 +169,12 @@ SIM_Status_t SIM_GPS_AutoDownloadXTRA(SIM_HandlerTypeDef *hsim, uint8_t isEnable
 {
   SIM_Status_t status = SIM_ERROR;
 
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
   SIM_SendCMD(hsim, "AT+CGPSXDAUTO=%d", (isEnable)?1:0);
   if (SIM_IsResponseOK(hsim))
     status = SIM_OK;
 
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
   return status;
 }
 
@@ -183,12 +183,12 @@ SIM_Status_t SIM_GPS_SetReportNMEA(SIM_HandlerTypeDef *hsim, uint8_t interval, u
 {
   SIM_Status_t status = SIM_ERROR;
 
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
   SIM_SendCMD(hsim, "AT+CGPSINFOCFG=%d,%d", interval, reportEn);
   if (SIM_IsResponseOK(hsim))
     status = SIM_OK;
 
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
   return status;
 }
 
@@ -197,12 +197,12 @@ SIM_Status_t SIM_GPS_SetMOAGPSMethod(SIM_HandlerTypeDef *hsim, SIM_GPS_MOAGPS_Me
 {
   SIM_Status_t status = SIM_ERROR;
 
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
   SIM_SendCMD(hsim, "AT+CGPSMD=%d", method);
   if (SIM_IsResponseOK(hsim))
     status = SIM_OK;
 
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
   return status;
 }
 
@@ -211,7 +211,7 @@ SIM_Status_t SIM_GPS_SetAGPSServer(SIM_HandlerTypeDef *hsim, const char* url, ui
 {
   SIM_Status_t status = SIM_ERROR;
 
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
 
   SIM_SendCMD(hsim, "AT+CGPSURL=\"%s\"", url);
   if (!SIM_IsResponseOK(hsim)) {
@@ -225,7 +225,7 @@ SIM_Status_t SIM_GPS_SetAGPSServer(SIM_HandlerTypeDef *hsim, const char* url, ui
 
   status = SIM_OK;
   endcmd:
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
   return status;
 }
 
@@ -234,7 +234,7 @@ SIM_Status_t SIM_GPS_SetAntenna(SIM_HandlerTypeDef *hsim, SIM_GPS_ANT_Mode_t mod
 {
   SIM_Status_t status = SIM_ERROR;
 
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
   switch (mode)
   {
   case SIM_GPS_ANT_PASSIVE:
@@ -258,7 +258,7 @@ SIM_Status_t SIM_GPS_SetAntenna(SIM_HandlerTypeDef *hsim, SIM_GPS_ANT_Mode_t mod
     break;
   }
 
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
   return status;
 }
 
@@ -267,12 +267,12 @@ SIM_Status_t SIM_GPS_SetAutoSwitchMode(SIM_HandlerTypeDef *hsim, uint8_t isAuto)
 {
   SIM_Status_t status = SIM_ERROR;
 
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
   SIM_SendCMD(hsim, "AT+CGPSMSB=%d", (isAuto)?1:0);
   if (SIM_IsResponseOK(hsim))
     status = SIM_OK;
 
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
   return status;
 }
 

@@ -137,7 +137,7 @@ void SIM_NetOpen(SIM_HandlerTypeDef *hsim)
 
   if (SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_OPENING)) return;
 
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
 
   SIM_Debug("getting online data");
 
@@ -157,7 +157,7 @@ void SIM_NetOpen(SIM_HandlerTypeDef *hsim)
   }
   SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_OPENING);
   endCMD:
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
 }
 
 
@@ -175,7 +175,7 @@ void SIM_SetNTP(SIM_HandlerTypeDef *hsim, const char *server, int8_t region)
 static void GprsSetAPN(SIM_HandlerTypeDef *hsim,
                        const char *APN, const char *user, const char *pass)
 {
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
 
   // check net state
   SIM_SendCMD(hsim, "AT+CGDCONT=1,\"IP\",\"%s\"", APN);
@@ -198,7 +198,7 @@ static void GprsSetAPN(SIM_HandlerTypeDef *hsim,
   SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_APN_WAS_SET);
   SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_GPRS_REGISTERED);
   endcmd:
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
 }
 
 
@@ -210,7 +210,7 @@ static uint8_t GprsCheck(SIM_HandlerTypeDef *hsim)
   uint8_t isOK = 0;
 
   // send command then get response;
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
 
   memset(resp, 0, 16);
   SIM_SendCMD(hsim, "AT+CGREG?");
@@ -233,14 +233,14 @@ static uint8_t GprsCheck(SIM_HandlerTypeDef *hsim)
   }
 
   endcmd:
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
   return isOK;
 }
 
 #if SIM_EN_FEATURE_NTP
 static void setNTP(SIM_HandlerTypeDef *hsim, const char *server, int8_t region)
 {
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
 
   SIM_SendCMD(hsim, "AT+CNTP=\"%s\",%d", server, (int) region);
   if (!SIM_IsResponseOK(hsim)) {
@@ -250,7 +250,7 @@ static void setNTP(SIM_HandlerTypeDef *hsim, const char *server, int8_t region)
   SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SET);
 
   endcmd:
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
   syncNTP(hsim);
 }
 
@@ -265,7 +265,7 @@ static uint8_t syncNTP(SIM_HandlerTypeDef *hsim)
 
   SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SYNCED);
 
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
 
   memset(resp, 0, 5);
   SIM_SendCMD(hsim, "AT+CNTP");
@@ -288,7 +288,7 @@ static uint8_t syncNTP(SIM_HandlerTypeDef *hsim)
 
   isOk = 1;
   endcmd:
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
 
   if (isOk && hsim->NTP.onSynced != 0) {
     hsim->NTP.onSynced(SIM_GetTime(hsim));

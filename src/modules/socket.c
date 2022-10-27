@@ -187,17 +187,17 @@ SIM_Status_t SIM_SockOpenTCPIP(SIM_HandlerTypeDef *hsim, int8_t *linkNum, const 
     if (*linkNum == -1) return SIM_ERROR;
   }
 
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
   SIM_SendCMD(hsim, "AT+CIPOPEN=%d,\"TCP\",\"%s\",%d", *linkNum, host, port);
   SIM_SOCK_SET_STATE((SIM_Socket_t*)hsim->net.sockets[*linkNum], SIM_SOCK_STATE_OPENING);
 
   if (SIM_IsResponseOK(hsim)) {
-    SIM_UnlockCMD(hsim);
+    hsim->mutexUnlock(hsim);
     return SIM_OK;
   }
   SIM_SOCK_SET_STATE((SIM_Socket_t*)hsim->net.sockets[*linkNum], SIM_SOCK_STATE_CLOSED);
 
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
   return SIM_ERROR;
 }
 
@@ -207,7 +207,7 @@ SIM_Status_t SIM_SockClose(SIM_HandlerTypeDef *hsim, uint8_t linkNum)
   uint8_t *resp = &SIM_RespTmp[0];
   SIM_Socket_t *socket;
 
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
 
   memset(resp, 0, 20);
   SIM_SendCMD(hsim, "AT+CIPCLOSE?");
@@ -215,7 +215,7 @@ SIM_Status_t SIM_SockClose(SIM_HandlerTypeDef *hsim, uint8_t linkNum)
     if (linkNum < 10 && *(resp+(linkNum*2)) == '1') {
       SIM_SendCMD(hsim, "AT+CIPCLOSE=%d", linkNum);
       if (SIM_IsResponseOK(hsim)) {
-        SIM_UnlockCMD(hsim);
+        hsim->mutexUnlock(hsim);
         return SIM_OK;
       }
     } else {
@@ -227,7 +227,7 @@ SIM_Status_t SIM_SockClose(SIM_HandlerTypeDef *hsim, uint8_t linkNum)
     }
   }
 
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
   return SIM_ERROR;
 }
 
@@ -238,7 +238,7 @@ uint16_t SIM_SockSendData(SIM_HandlerTypeDef *hsim, int8_t linkNum, const uint8_
   uint8_t resp = 0;
   uint8_t *cmdTmp = &SIM_CmdTmp[0];
 
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
 
   sprintf((char*) cmdTmp, "AT+CIPSEND=%d,%d\r", linkNum, length);
   SIM_SendData(hsim, cmdTmp, strlen((char*)cmdTmp));
@@ -256,7 +256,7 @@ uint16_t SIM_SockSendData(SIM_HandlerTypeDef *hsim, int8_t linkNum, const uint8_
   }
 
 endcmd:
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
   return sendLen;
 }
 
@@ -344,7 +344,7 @@ static void resetOpenedSocket(SIM_HandlerTypeDef *hsim)
   uint8_t *resp = &SIM_RespTmp[0];
   uint8_t *closing_resp = &SIM_RespTmp[32];
 
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
   // TCP/IP Config
   SIM_SendCMD(hsim, "AT+CIPCCFG=10,0,0,1,1,0,10000");
   if (SIM_IsResponseOK(hsim)){}
@@ -364,7 +364,7 @@ static void resetOpenedSocket(SIM_HandlerTypeDef *hsim)
     SIM_NET_SET_STATUS(hsim, SIM_NET_STATUS_AVAILABLE);
   }
 
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
 }
 
 
