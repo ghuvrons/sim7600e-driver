@@ -8,9 +8,9 @@
 #ifndef SIM7600E_INC_SIMCOM_H_
 #define SIM7600E_INC_SIMCOM_H_
 
-#include "stm32f4xx_hal.h"
 #include "simcom/conf.h"
-#include <dma_streamer.h>
+#include <stdint.h>
+#include <buffer.h>
 
 #if SIM_EN_FEATURE_GPS
 #include "lwgps/lwgps.h"
@@ -61,13 +61,29 @@ typedef struct {
   int8_t  timezone;
 } SIM_Datetime;
 
-typedef struct {
+typedef struct SIM_HandlerTypeDef {
   uint8_t             status;
   uint8_t             events;
   uint8_t             errors;
   uint8_t             signal;
   uint32_t            timeout;
-  STRM_handlerTypeDef *dmaStreamer;
+
+  void (*delay)(uint32_t ms);
+  uint32_t (*getTick)(void);
+
+  void (*mutexLock)(struct SIM_HandlerTypeDef*);
+  void (*mutexUnlock)(struct SIM_HandlerTypeDef*);
+
+  struct {
+    void *device;
+    uint8_t (*isReadable)(void *device);
+    int (*read)(void *device, uint8_t *dst, uint16_t sz, uint32_t timeout);
+    int (*readline)(void *device, uint8_t *dst, uint16_t sz, uint32_t timeout);
+    int (*readinto)(void *device, Buffer_t *buffer, uint16_t sz, uint32_t timeout);
+    int (*unread)(void *device, uint16_t sz);
+    int (*write)(void *device, const uint8_t *src, uint16_t sz, uint32_t timeout);
+    int (*writeline)(void *device, const uint8_t *src, uint16_t sz, uint32_t timeout);
+  } serial;
 
   #if SIM_EN_FEATURE_NET
   struct {
@@ -137,10 +153,7 @@ typedef struct {
 extern uint8_t SIM_CmdTmp[64];
 extern uint8_t SIM_RespTmp[64];
 
-void SIM_LockCMD(SIM_HandlerTypeDef*);
-void SIM_UnlockCMD(SIM_HandlerTypeDef*);
-
-void          SIM_Init(SIM_HandlerTypeDef*, STRM_handlerTypeDef*);
+SIM_Status_t  SIM_Init(SIM_HandlerTypeDef*);
 void          SIM_CheckAnyResponse(SIM_HandlerTypeDef*);
 void          SIM_CheckAsyncResponse(SIM_HandlerTypeDef*);
 void          SIM_HandleEvents(SIM_HandlerTypeDef*);

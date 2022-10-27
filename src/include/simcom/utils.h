@@ -12,16 +12,7 @@
 #include <string.h>
 
 
-// MACROS
-
-#ifndef SIM_GetTick
-#define SIM_GetTick() HAL_GetTick()
-#endif
-#ifndef SIM_Delay
-#define SIM_Delay(ms) HAL_Delay(ms)
-#endif
-
-#define SIM_IsTimeout(lastTick, timeout) ((SIM_GetTick() - (lastTick)) > (timeout))
+#define SIM_IsTimeout(hsim, lastTick, timeout) (((hsim)->getTick() - (lastTick)) > (timeout))
 
 #define SIM_IsResponse(hsim, resp, min_len) \
   ((hsim)->respBufferLen >= (min_len) \

@@ -107,7 +107,7 @@ void SIM_SockHandleEvents(SIM_HandlerTypeDef *hsim)
       if (SIM_BITS_IS(socket->events, SIM_SOCK_EVENT_ON_OPENING_ERROR)) {
         SIM_BITS_UNSET(socket->events, SIM_SOCK_EVENT_ON_OPENING_ERROR);
         if (socket->config.autoReconnect) {
-          socket->tick.reconnDelay = SIM_GetTick();
+          socket->tick.reconnDelay = hsim->getTick();
           if (socket->listeners.onConnectError != NULL)
             socket->listeners.onConnectError();
         }
@@ -117,7 +117,7 @@ void SIM_SockHandleEvents(SIM_HandlerTypeDef *hsim)
         SIM_BITS_UNSET(socket->events, SIM_SOCK_EVENT_ON_CLOSED);
         if (!socket->config.autoReconnect)
           hsim->net.sockets[i] = NULL;
-        else socket->tick.reconnDelay = SIM_GetTick();
+        else socket->tick.reconnDelay = hsim->getTick();
         if (socket->listeners.onClosed != NULL)
           socket->listeners.onClosed();
       }
@@ -130,7 +130,7 @@ void SIM_SockHandleEvents(SIM_HandlerTypeDef *hsim)
 
       // auto reconnect
       if (SIM_SOCK_IS_STATE(socket, SIM_SOCK_STATE_CLOSED)) {
-        if (SIM_IsTimeout(socket->tick.reconnDelay, socket->config.reconnectingDelay)) {
+        if (SIM_IsTimeout(hsim, socket->tick.reconnDelay, socket->config.reconnectingDelay)) {
           sockOpen(socket);
         }
       }
@@ -147,7 +147,7 @@ void SIM_SockOnStarted(SIM_HandlerTypeDef *hsim)
     if ((socket = hsim->net.sockets[i]) != NULL) {
       if (SIM_SOCK_IS_STATE(socket, SIM_SOCK_STATE_OPENING)) {
         if (socket->config.autoReconnect) {
-          socket->tick.reconnDelay = SIM_GetTick();
+          socket->tick.reconnDelay = hsim->getTick();
           if (socket->listeners.onConnectError != NULL)
             socket->listeners.onConnectError();
         }
@@ -255,7 +255,7 @@ uint16_t SIM_SockSendData(SIM_HandlerTypeDef *hsim, int8_t linkNum, const uint8_
     sendLen = 0;
   }
 
-  endcmd:
+endcmd:
   SIM_UnlockCMD(hsim);
   return sendLen;
 }
@@ -393,7 +393,7 @@ static void receiveData(SIM_HandlerTypeDef *hsim)
       if (dataLen > socket->buffer.size)  writeLen = socket->buffer.size;
       else                                writeLen = dataLen;
 
-      if (STRM_ReadToBuffer(hsim->dmaStreamer, &socket->buffer, writeLen, 5000) != HAL_OK)
+      if (hsim->serial.readinto(hsim->serial.device, &socket->buffer, writeLen, 5000) < 0)
         break;
 
       dataLen -= writeLen;

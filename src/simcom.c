@@ -16,33 +16,21 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <dma_streamer.h>
 
 
 uint8_t SIM_CmdTmp[64];
 uint8_t SIM_RespTmp[64];
 
 // static function initiation
+static void mutexLock(SIM_HandlerTypeDef*);
+static void mutexUnlock(SIM_HandlerTypeDef*);
 static void SIM_reset(SIM_HandlerTypeDef*);
 static void str2Time(SIM_Datetime*, const char*);
 
 
 // function definition
-__weak void SIM_LockCMD(SIM_HandlerTypeDef *hsim)
-{
-  while(SIM_IS_STATUS(hsim, SIM_STATUS_CMD_RUNNING)){
-    SIM_Delay(1);
-  }
-  SIM_SET_STATUS(hsim, SIM_STATUS_CMD_RUNNING);
-}
 
-__weak void SIM_UnlockCMD(SIM_HandlerTypeDef *hsim)
-{
-  SIM_UNSET_STATUS(hsim, SIM_STATUS_CMD_RUNNING);
-}
-
-
-void SIM_Init(SIM_HandlerTypeDef *hsim, STRM_handlerTypeDef *dmaStreamer)
+SIM_Status_t SIM_Init(SIM_HandlerTypeDef *hsim)
 {
   SIM_Debug("Init");
   hsim->status = 0;
@@ -51,9 +39,24 @@ void SIM_Init(SIM_HandlerTypeDef *hsim, STRM_handlerTypeDef *dmaStreamer)
   hsim->signal = 0;
   if (hsim->timeout == 0)
     hsim->timeout = 5000;
-  hsim->initAt = SIM_GetTick();
-  hsim->dmaStreamer = dmaStreamer;
-  dmaStreamer->config.breakLine = STRM_BREAK_CRLF;
+
+  if (hsim->delay == 0) return SIM_ERROR;
+  if (hsim->getTick == 0) return SIM_ERROR;
+  if (hsim->serial.device == 0) return SIM_ERROR;
+  if (hsim->serial.read == 0) return SIM_ERROR;
+  if (hsim->serial.readline == 0) return SIM_ERROR;
+  if (hsim->serial.readinto == 0) return SIM_ERROR;
+  if (hsim->serial.unread == 0) return SIM_ERROR;
+  if (hsim->serial.write == 0) return SIM_ERROR;
+  if (hsim->serial.writeline == 0) return SIM_ERROR;
+
+  if (hsim->mutexLock == 0) 
+    hsim->mutexLock = mutexLock;
+
+  if (hsim->mutexUnlock == 0)
+    hsim->mutexUnlock = mutexUnlock;
+
+  hsim->initAt = hsim->getTick();
 }
 
 
@@ -62,15 +65,18 @@ void SIM_Init(SIM_HandlerTypeDef *hsim, STRM_handlerTypeDef *dmaStreamer)
  */
 void SIM_CheckAnyResponse(SIM_HandlerTypeDef *hsim)
 {
+  int readStatus;
+
   // Read incoming Response
-  SIM_LockCMD(hsim);
-  while (STRM_IsReadable(hsim->dmaStreamer)) {
-    hsim->respBufferLen = STRM_Readline(hsim->dmaStreamer, hsim->respBuffer, SIM_RESP_BUFFER_SIZE, 5000);
-    if (hsim->respBufferLen) {
+  hsim->mutexLock(hsim);
+  while (hsim->serial.isReadable(hsim->serial.device)) {
+    readStatus = hsim->serial.readline(hsim->serial.device, hsim->respBuffer, SIM_RESP_BUFFER_SIZE, 5000);
+    if (readStatus > 0) {
+      hsim->respBufferLen = readStatus;
       SIM_CheckAsyncResponse(hsim);
     }
   }
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
 
   // Event Handler
   SIM_HandleEvents(hsim);
@@ -114,9 +120,9 @@ void SIM_CheckAsyncResponse(SIM_HandlerTypeDef *hsim)
 void SIM_HandleEvents(SIM_HandlerTypeDef *hsim)
 {
   // check async response
-  if (hsim->status == 0 && (SIM_GetTick() - hsim->initAt > hsim->timeout)) {
+  if (hsim->status == 0 && (hsim->getTick() - hsim->initAt > hsim->timeout)) {
     if (!SIM_CheckAT(hsim)) {
-      hsim->initAt = SIM_GetTick();
+      hsim->initAt = hsim->getTick();
     } else {
       SIM_Echo(hsim, 0);
     }
@@ -146,12 +152,12 @@ void SIM_HandleEvents(SIM_HandlerTypeDef *hsim)
   }
   if (SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE) && !SIM_IS_STATUS(hsim, SIM_STATUS_SIM_INSERTED)) {
     if(!SIM_CheckSIMCard(hsim)) {
-      SIM_Delay(3000);
+      hsim->delay(3000);
     }
   }
   if (SIM_IS_STATUS(hsim, SIM_STATUS_SIM_INSERTED) && !SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED)) {
     if(!SIM_ReqisterNetwork(hsim)) {
-      SIM_Delay(3000);
+      hsim->delay(3000);
     }
   }
 
@@ -172,14 +178,14 @@ void SIM_HandleEvents(SIM_HandlerTypeDef *hsim)
 
 void SIM_Echo(SIM_HandlerTypeDef *hsim, uint8_t onoff)
 {
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
   if (onoff)
     SIM_SendCMD(hsim, "ATE1");
   else
     SIM_SendCMD(hsim, "ATE0");
   // wait response
   if (SIM_IsResponseOK(hsim)) {}
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
 }
 
 
@@ -187,7 +193,7 @@ uint8_t SIM_CheckAT(SIM_HandlerTypeDef *hsim)
 {
   uint8_t isOK = 0;
   // send command;
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
   SIM_SendCMD(hsim, "AT");
 
   // wait response
@@ -198,7 +204,7 @@ uint8_t SIM_CheckAT(SIM_HandlerTypeDef *hsim)
   } else {
     SIM_UNSET_STATUS(hsim, SIM_STATUS_ACTIVE);
   }
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
 
   return isOK;
 }
@@ -213,7 +219,7 @@ uint8_t SIM_CheckSignal(SIM_HandlerTypeDef *hsim)
   if (!SIM_IS_STATUS(hsim, SIM_STATUS_ACTIVE)) return signal;
 
   // send command then get response;
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
   SIM_SendCMD(hsim, "AT+CSQ");
 
   memset(resp, 0, 16);
@@ -224,7 +230,7 @@ uint8_t SIM_CheckSignal(SIM_HandlerTypeDef *hsim)
     signal = (uint8_t) atoi((char*)resp);
     hsim->signal = signal;
   }
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
 
   if (signal == 99) {
     signal = 0;
@@ -241,7 +247,7 @@ uint8_t SIM_CheckSIMCard(SIM_HandlerTypeDef *hsim)
   uint8_t *resp = &SIM_RespTmp[0];
   uint8_t isOK = 0;
 
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
 
   memset(resp, 0, 11);
   SIM_SendCMD(hsim, "AT+CPIN?");
@@ -255,7 +261,7 @@ uint8_t SIM_CheckSIMCard(SIM_HandlerTypeDef *hsim)
   } else {
     SIM_Debug("SIM card error.");
   }
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
   return isOK;
 }
 
@@ -269,7 +275,7 @@ uint8_t SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
   uint8_t isOK = 0;
 
   // send command then get response;
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
 
   memset(resp, 0, 4);
   SIM_SendCMD(hsim, "AT+CREG?");
@@ -315,12 +321,12 @@ uint8_t SIM_ReqisterNetwork(SIM_HandlerTypeDef *hsim)
     }
     else if (resp_stat == 2) {
       SIM_Debug("Searching network....");
-      SIM_Delay(2000);
+      hsim->delay(2000);
     }
   }
 
   endcmd:
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
   return isOK;
 }
 
@@ -331,14 +337,14 @@ SIM_Datetime SIM_GetTime(SIM_HandlerTypeDef *hsim)
   uint8_t *resp = &SIM_RespTmp[0];
 
   // send command then get response;
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
 
   memset(resp, 0, 22);
   SIM_SendCMD(hsim, "AT+CCLK?");
   if (SIM_GetResponse(hsim, "+CCLK", 5, resp, 22, SIM_GETRESP_WAIT_OK, 2000) == SIM_OK) {
     str2Time(&result, (char*)&resp[0]);
   }
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
 
   return result;
 }
@@ -367,7 +373,7 @@ void SIM_SendUSSD(SIM_HandlerTypeDef *hsim, const char *ussd)
 {
   if (!SIM_IS_STATUS(hsim, SIM_STATUS_REGISTERED)) return;
 
-  SIM_LockCMD(hsim);
+  hsim->mutexLock(hsim);
   SIM_SendCMD(hsim, "AT+CSCS=\"GSM\"");
   if (!SIM_IsResponseOK(hsim)){
     goto endcmd;
@@ -376,7 +382,22 @@ void SIM_SendUSSD(SIM_HandlerTypeDef *hsim, const char *ussd)
   SIM_SendCMD(hsim, "AT+CUSD=1,%s,15", ussd);
 
   endcmd:
-  SIM_UnlockCMD(hsim);
+  hsim->mutexUnlock(hsim);
+}
+
+
+static void mutexLock(SIM_HandlerTypeDef *hsim)
+{
+  while (SIM_IS_STATUS(hsim, SIM_STATUS_CMD_RUNNING)) {
+    hsim->delay(1);
+  }
+  SIM_SET_STATUS(hsim, SIM_STATUS_CMD_RUNNING);
+}
+
+
+static void mutexUnlock(SIM_HandlerTypeDef *hsim)
+{
+  SIM_UNSET_STATUS(hsim, SIM_STATUS_CMD_RUNNING);
 }
 
 

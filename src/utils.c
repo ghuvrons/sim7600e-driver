@@ -12,40 +12,36 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-#include <dma_streamer.h>
 
 
-__weak void SIM_Printf(const char *format, ...) {}
-__weak void SIM_Println(const char *format, ...) {}
+ __attribute__((weak)) void SIM_Printf(const char *format, ...) {}
+ __attribute__((weak)) void SIM_Println(const char *format, ...) {}
 
 uint8_t SIM_SendCMD(SIM_HandlerTypeDef *hsim, const char *format, ...)
 {
+  uint16_t writeStatus;
   va_list arglist;
+
   va_start( arglist, format );
   hsim->cmdBufferLen = vsprintf(hsim->cmdBuffer, format, arglist);
   va_end( arglist );
-  return (STRM_Write(hsim->dmaStreamer,
-                     (uint8_t*)hsim->cmdBuffer,
-                     hsim->cmdBufferLen,
-                     STRM_BREAK_CRLF) == HAL_OK);
+  writeStatus = hsim->serial.writeline(hsim->serial.device,
+                                       (uint8_t*)hsim->cmdBuffer,
+                                       hsim->cmdBufferLen, 5000);
+  if (writeStatus < 0) return 0;
+  return 1;
 }
 
 
 uint8_t SIM_SendData(SIM_HandlerTypeDef *hsim, const uint8_t *data, uint16_t size)
 {
-  uint16_t txSize = size;
-  uint16_t sentSize;
+  uint16_t writeStatus;
 
   do {
-    if (size > hsim->dmaStreamer->txBufferSize) {
-      txSize = hsim->dmaStreamer->txBufferSize;
-    } else {
-      txSize = size;
-    }
-    sentSize = STRM_Write(hsim->dmaStreamer, (uint8_t*)data, txSize, STRM_BREAK_NONE);
-    if (sentSize == 0) return 0;
-    data += sentSize;
-    size -= sentSize;
+    writeStatus = hsim->serial.write(hsim->serial.device, data, size, 5000);
+    if (writeStatus <= 0) return 0;
+    data += writeStatus;
+    size -= writeStatus;
   } while (size);
 
   return 1;
@@ -53,24 +49,27 @@ uint8_t SIM_SendData(SIM_HandlerTypeDef *hsim, const uint8_t *data, uint16_t siz
 
 
 
-uint8_t SIM_WaitResponse( SIM_HandlerTypeDef *hsim,
-                          const char *respCode, uint16_t rcsize,
-                          uint32_t timeout)
+uint8_t SIM_WaitResponse(SIM_HandlerTypeDef *hsim,
+                         const char *respCode, uint16_t rcsize,
+                         uint32_t timeout)
 {
-  uint32_t tickstart = STRM_GetTick();
+  int readStatus;
+  uint32_t tickstart = hsim->getTick();
   if (rcsize > SIM_RESP_BUFFER_SIZE) rcsize = SIM_RESP_BUFFER_SIZE;
   if (timeout == 0) timeout = hsim->timeout;
 
   while (1) {
-    if((STRM_GetTick() - tickstart) >= timeout) break;
-    hsim->respBufferLen = STRM_Read(hsim->dmaStreamer, hsim->respBuffer, rcsize, timeout);
+    if ((hsim->getTick() - tickstart) >= timeout) break;
+    readStatus = hsim->serial.read(hsim->serial.device, hsim->respBuffer, rcsize, timeout);
     if (SIM_IsResponse(hsim, respCode, rcsize)) {
       return 1;
     }
-    STRM_Unread(hsim->dmaStreamer, hsim->respBufferLen);
 
-    hsim->respBufferLen = STRM_Readline(hsim->dmaStreamer, hsim->respBuffer, SIM_RESP_BUFFER_SIZE, timeout);
-    if (hsim->respBufferLen) {
+    hsim->serial.unread(hsim->serial.device, readStatus);
+
+    readStatus = hsim->serial.readline(hsim->serial.device, hsim->respBuffer, SIM_RESP_BUFFER_SIZE, timeout);
+    if (readStatus > 0) {
+      hsim->respBufferLen = readStatus;
       SIM_CheckAsyncResponse(hsim);
     }
   }
@@ -87,16 +86,18 @@ SIM_Status_t SIM_GetResponse( SIM_HandlerTypeDef *hsim,
   uint16_t i;
   uint8_t resp = SIM_TIMEOUT;
   uint8_t flagToReadResp = 0;
-  uint32_t tickstart = SIM_GetTick();
+  uint32_t tickstart = hsim->getTick();
+  int readStatus;
 
   if (timeout == 0) timeout = hsim->timeout;
 
   // wait until available
   while(1) {
-    if((SIM_GetTick() - tickstart) >= timeout) break;
+    if((hsim->getTick() - tickstart) >= timeout) break;
 
-    hsim->respBufferLen = STRM_Readline(hsim->dmaStreamer, hsim->respBuffer, SIM_RESP_BUFFER_SIZE, timeout);
-    if (hsim->respBufferLen) {
+    readStatus = hsim->serial.readline(hsim->serial.device, hsim->respBuffer, SIM_RESP_BUFFER_SIZE, timeout);
+    if (readStatus > 0) {
+      hsim->respBufferLen = readStatus;
       hsim->respBuffer[hsim->respBufferLen] = 0;
       if (rcsize && strncmp((char *)hsim->respBuffer, respCode, (int) rcsize) == 0) {
         if (flagToReadResp) continue;
@@ -151,7 +152,7 @@ SIM_Status_t SIM_GetResponse( SIM_HandlerTypeDef *hsim,
 
 uint16_t SIM_GetData(SIM_HandlerTypeDef *hsim, uint8_t *respData, uint16_t rdsize, uint32_t timeout)
 {
-  return STRM_Read(hsim->dmaStreamer, respData, rdsize, timeout);
+  return hsim->serial.read(hsim->serial.device, respData, rdsize, timeout);
 }
 
 

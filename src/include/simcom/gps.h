@@ -8,7 +8,6 @@
 #ifndef SIM7600E_INC_GPS_H
 #define SIM7600E_INC_GPS_H_
 
-#include "stm32f4xx_hal.h"
 #include "../simcom.h"
 #include "conf.h"
 

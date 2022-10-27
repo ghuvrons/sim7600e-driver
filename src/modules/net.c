@@ -85,11 +85,11 @@ void SIM_NetHandleEvents(SIM_HandlerTypeDef *hsim)
     if (!SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SYNCED)
         && SIM_NET_IS_STATUS(hsim, SIM_NET_STATUS_OPEN))
     {
-      if (hsim->NTP.syncTick == 0 || SIM_IsTimeout(hsim->NTP.syncTick, hsim->NTP.config.retryInterval)) {
+      if (hsim->NTP.syncTick == 0 || SIM_IsTimeout(hsim, hsim->NTP.syncTick, hsim->NTP.config.retryInterval)) {
         syncNTP(hsim);
       }
     } else {
-      if (hsim->NTP.syncTick != 0 && SIM_IsTimeout(hsim->NTP.syncTick, hsim->NTP.config.resyncInterval)) {
+      if (hsim->NTP.syncTick != 0 && SIM_IsTimeout(hsim, hsim->NTP.syncTick, hsim->NTP.config.resyncInterval)) {
         syncNTP(hsim);
       }
     }
@@ -261,7 +261,7 @@ static uint8_t syncNTP(SIM_HandlerTypeDef *hsim)
   uint8_t status;
   uint8_t isOk = 0;
 
-  hsim->NTP.syncTick = SIM_GetTick();
+  hsim->NTP.syncTick = hsim->getTick();
 
   SIM_NET_UNSET_STATUS(hsim, SIM_NET_STATUS_NTP_WAS_SYNCED);
 
