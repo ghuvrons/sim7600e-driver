@@ -38,6 +38,12 @@
 #define SIM_NET_UNSET_STATUS(hsim, stat)  SIM_BITS_UNSET((hsim)->net.status, stat)
 #endif
 
+#if SIM_EN_FEATURE_HTTP
+#define SIM_HTTP_IS_STATUS(hsim, stat)     SIM_BITS_IS_ALL((hsim)->http.status, stat)
+#define SIM_HTTP_SET_STATUS(hsim, stat)    SIM_BITS_SET((hsim)->http.status, stat)
+#define SIM_HTTP_UNSET_STATUS(hsim, stat)  SIM_BITS_UNSET((hsim)->http.status, stat)
+#endif
+
 #if SIM_EN_FEATURE_MQTT
 #define SIM_MQTT_IS_STATUS(hsim, stat)     SIM_BITS_IS_ALL((hsim)->mqtt.status, stat)
 #define SIM_MQTT_SET_STATUS(hsim, stat)    SIM_BITS_SET((hsim)->mqtt.status, stat)

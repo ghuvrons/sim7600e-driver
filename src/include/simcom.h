@@ -122,6 +122,15 @@ typedef struct SIM_HandlerTypeDef {
   #endif /* SIM_EN_FEATURE_NTP */
   #endif /* SIM_EN_FEATURE_NET */
 
+  #if SIM_EN_FEATURE_HTTP
+  struct {
+    uint8_t status;
+    uint8_t events;
+    void *request;
+    void *response;
+  } http;
+  #endif
+
   #if SIM_EN_FEATURE_NET && SIM_EN_FEATURE_MQTT
   struct {
     uint8_t status;

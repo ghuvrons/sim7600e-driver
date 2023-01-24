@@ -184,5 +184,9 @@ const uint8_t * SIM_ParseStr(const uint8_t *separator, uint8_t delimiter, int id
     separator++;
   }
 
+  if (output != 0) {
+    *output = 0;
+  }
+
   return separator;
 }
